@@ -16,11 +16,29 @@ export interface Car {
   status: "active" | "inactive";
 }
 
+export interface CarCost {
+  id: string;
+  carId: string;
+  date: string;
+  amount: number;
+  costType: "maintenance" | "cf" | "puc" | "tax" | "insurance" | "other";
+  notes?: string;
+}
+
+export interface CarDocument {
+  id: string;
+  carId: string;
+  docType: "rc" | "insurance" | "puc" | "permit" | "fitness" | "other";
+  docName: string;
+  expiryDate?: string;
+  notes?: string;
+}
+
 export interface CashEntry {
   id: string;
   driverId: string;
   carId: string;
-  weekStart: string; // ISO date string of Monday
+  weekStart: string;
   date: string;
   amount: number;
   source: "savari" | "direct" | "other";
@@ -75,8 +93,8 @@ export interface Settlement {
 }
 
 export interface WeekSession {
-  start: string; // ISO Monday
-  end: string;   // ISO Sunday
+  start: string;
+  end: string;
   label: string;
   locked: boolean;
 }

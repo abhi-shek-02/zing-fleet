@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isAuthenticated } from "@/lib/store";
+import { seedDummyData } from "@/lib/seed";
 import BottomNav from "@/components/BottomNav";
 import LoginPage from "@/pages/Login";
 import DashboardPage from "@/pages/Dashboard";
@@ -11,7 +12,11 @@ import DriverDetailPage from "@/pages/DriverDetail";
 import AccountingPage from "@/pages/Accounting";
 import SettlementsPage from "@/pages/Settlements";
 import ReportsPage from "@/pages/Reports";
+import AnalyticsPage from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
+
+// Seed dummy data on first load
+seedDummyData();
 
 const queryClient = new QueryClient();
 
@@ -42,6 +47,7 @@ const App = () => (
           <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingPage /></AppLayout></ProtectedRoute>} />
           <Route path="/settlements" element={<ProtectedRoute><AppLayout><SettlementsPage /></AppLayout></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><AppLayout><AnalyticsPage /></AppLayout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

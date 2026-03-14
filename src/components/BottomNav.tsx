@@ -1,12 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Users, BookOpen, Handshake, FileText } from "lucide-react";
+import { Home, Users, BookOpen, Handshake, BarChart3 } from "lucide-react";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/drivers", icon: Users, label: "Drivers" },
   { to: "/accounting", icon: BookOpen, label: "Accounting" },
   { to: "/settlements", icon: Handshake, label: "Settle" },
-  { to: "/reports", icon: FileText, label: "Reports" },
+  { to: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
 export default function BottomNav() {
