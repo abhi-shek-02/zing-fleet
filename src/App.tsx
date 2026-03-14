@@ -1,22 +1,47 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { isAuthenticated } from "@/lib/store";
+import BottomNav from "@/components/BottomNav";
+import LoginPage from "@/pages/Login";
+import DashboardPage from "@/pages/Dashboard";
+import DriversPage from "@/pages/Drivers";
+import DriverDetailPage from "@/pages/DriverDetail";
+import AccountingPage from "@/pages/Accounting";
+import SettlementsPage from "@/pages/Settlements";
+import ReportsPage from "@/pages/Reports";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-auto min-h-screen max-w-lg pb-20">
+      <div className="px-4 py-2">{children}</div>
+      <BottomNav />
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/drivers" element={<ProtectedRoute><AppLayout><DriversPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/drivers/:id" element={<ProtectedRoute><AppLayout><DriverDetailPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/settlements" element={<ProtectedRoute><AppLayout><SettlementsPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
