@@ -1,8 +1,10 @@
-import type { Driver, Car, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, Settlement } from "@/types";
+import type { Driver, Car, CarCost, CarDocument, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, Settlement } from "@/types";
 
 const KEYS = {
   drivers: "zingcab_drivers",
   cars: "zingcab_cars",
+  carCosts: "zingcab_carcosts",
+  carDocs: "zingcab_cardocs",
   cash: "zingcab_cash",
   vendor: "zingcab_vendor",
   fuel: "zingcab_fuel",
@@ -10,6 +12,7 @@ const KEYS = {
   settlements: "zingcab_settlements",
   auth: "zingcab_auth",
   settings: "zingcab_settings",
+  seeded: "zingcab_seeded",
 };
 
 function get<T>(key: string): T[] {
@@ -53,6 +56,14 @@ export function saveDrivers(d: Driver[]): void { set(KEYS.drivers, d); }
 export function getCars(): Car[] { return get<Car>(KEYS.cars); }
 export function saveCars(c: Car[]): void { set(KEYS.cars, c); }
 
+// Car Costs
+export function getCarCosts(): CarCost[] { return get<CarCost>(KEYS.carCosts); }
+export function saveCarCosts(c: CarCost[]): void { set(KEYS.carCosts, c); }
+
+// Car Documents
+export function getCarDocs(): CarDocument[] { return get<CarDocument>(KEYS.carDocs); }
+export function saveCarDocs(d: CarDocument[]): void { set(KEYS.carDocs, d); }
+
 // Cash Entries
 export function getCashEntries(): CashEntry[] { return get<CashEntry>(KEYS.cash); }
 export function saveCashEntries(e: CashEntry[]): void { set(KEYS.cash, e); }
@@ -72,3 +83,7 @@ export function saveOtherCostEntries(e: OtherCostEntry[]): void { set(KEYS.other
 // Settlements
 export function getSettlements(): Settlement[] { return get<Settlement>(KEYS.settlements); }
 export function saveSettlements(s: Settlement[]): void { set(KEYS.settlements, s); }
+
+// Seed check
+export function isSeeded(): boolean { return localStorage.getItem(KEYS.seeded) === "true"; }
+export function markSeeded(): void { localStorage.setItem(KEYS.seeded, "true"); }
