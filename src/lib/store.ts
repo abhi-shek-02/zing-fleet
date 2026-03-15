@@ -1,4 +1,4 @@
-import type { Driver, Car, CarCost, CarDocument, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, Settlement } from "@/types";
+import type { Driver, Car, CarCost, CarDocument, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, OtherEarningEntry, Settlement } from "@/types";
 
 const KEYS = {
   drivers: "zingcab_drivers",
@@ -9,6 +9,7 @@ const KEYS = {
   vendor: "zingcab_vendor",
   fuel: "zingcab_fuel",
   otherCosts: "zingcab_othercosts",
+  otherEarnings: "zingcab_otherearnings",
   settlements: "zingcab_settlements",
   auth: "zingcab_auth",
   settings: "zingcab_settings",
@@ -79,6 +80,10 @@ export function saveFuelEntries(e: FuelEntry[]): void { set(KEYS.fuel, e); }
 // Other Cost Entries
 export function getOtherCostEntries(): OtherCostEntry[] { return get<OtherCostEntry>(KEYS.otherCosts); }
 export function saveOtherCostEntries(e: OtherCostEntry[]): void { set(KEYS.otherCosts, e); }
+
+// Other Earning Entries
+export function getOtherEarnings(): OtherEarningEntry[] { return get<OtherEarningEntry>(KEYS.otherEarnings); }
+export function saveOtherEarnings(e: OtherEarningEntry[]): void { set(KEYS.otherEarnings, e); }
 
 // Settlements
 export function getSettlements(): Settlement[] { return get<Settlement>(KEYS.settlements); }

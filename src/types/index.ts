@@ -32,6 +32,8 @@ export interface CarDocument {
   docName: string;
   expiryDate?: string;
   notes?: string;
+  fileData?: string; // base64 data URL
+  fileName?: string;
 }
 
 export interface CashEntry {
@@ -80,6 +82,17 @@ export interface OtherCostEntry {
   notes?: string;
 }
 
+export interface OtherEarningEntry {
+  id: string;
+  driverId: string;
+  carId: string;
+  weekStart: string;
+  date: string;
+  amount: number;
+  source: string;
+  notes?: string;
+}
+
 export interface Settlement {
   id: string;
   driverId: string;
@@ -90,6 +103,8 @@ export interface Settlement {
   paymentMode?: "upi" | "bank" | "cash";
   notes?: string;
   proofUrl?: string;
+  proofData?: string; // base64 data URL for payment screenshot
+  proofFileName?: string;
 }
 
 export interface WeekSession {
