@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDrivers, saveDrivers, getCars, saveCars, getCarCosts, saveCarCosts, getCarDocs, saveCarDocs } from "@/lib/store";
 import { generateId, formatCurrency } from "@/lib/utils-date";
@@ -6,13 +6,9 @@ import type { Driver, Car, CarCost, CarDocument } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, ChevronRight, Phone, Pencil, Car as CarIcon, FileText, Wrench, AlertTriangle } from "lucide-react";
-import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerClose,
-} from "@/components/ui/drawer";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Plus, ChevronRight, Phone, Pencil, FileText, Wrench, AlertTriangle, Download, Eye, Paperclip } from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, parseISO, differenceInDays } from "date-fns";
 
@@ -28,6 +24,9 @@ export default function DriversPage() {
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
   const [showCarCost, setShowCarCost] = useState(false);
   const [showCarDoc, setShowCarDoc] = useState(false);
+  const [docFilter, setDocFilter] = useState<string>("all");
+  const [viewDoc, setViewDoc] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // Driver form
@@ -53,6 +52,8 @@ export default function DriversPage() {
   const [cdName, setCdName] = useState("");
   const [cdExpiry, setCdExpiry] = useState("");
   const [cdNotes, setCdNotes] = useState("");
+  const [cdFileData, setCdFileData] = useState<string | undefined>();
+  const [cdFileName, setCdFileName] = useState<string | undefined>();
 
   const resetDriverForm = () => { setDName(""); setDPhone(""); setDCar(""); setDCommission("30"); };
   const resetCarForm = () => { setCNumber(""); setCModel(""); setCFuelType("petrol"); setCMileage("12"); };
@@ -103,12 +104,35 @@ export default function DriversPage() {
     setCcAmount(""); setCcNotes(""); setShowCarCost(false);
   };
 
+  const handleDocFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCdFileData(reader.result as string);
+      setCdFileName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const addCarDoc = () => {
     if (!selectedCarId || !cdName) return;
-    const doc: CarDocument = { id: generateId(), carId: selectedCarId, docType: cdType, docName: cdName, expiryDate: cdExpiry || undefined, notes: cdNotes || undefined };
+    const doc: CarDocument = {
+      id: generateId(), carId: selectedCarId, docType: cdType, docName: cdName,
+      expiryDate: cdExpiry || undefined, notes: cdNotes || undefined,
+      fileData: cdFileData, fileName: cdFileName,
+    };
     const updated = [...carDocs, doc];
     saveCarDocs(updated); setCarDocs(updated);
-    setCdName(""); setCdExpiry(""); setCdNotes(""); setShowCarDoc(false);
+    setCdName(""); setCdExpiry(""); setCdNotes(""); setCdFileData(undefined); setCdFileName(undefined); setShowCarDoc(false);
+  };
+
+  const downloadDoc = (doc: CarDocument) => {
+    if (!doc.fileData) return;
+    const link = document.createElement("a");
+    link.href = doc.fileData;
+    link.download = doc.fileName || `${doc.docType}-${doc.id}`;
+    link.click();
   };
 
   const getExpiryStatus = (expiry?: string) => {
@@ -120,6 +144,7 @@ export default function DriversPage() {
   };
 
   const selectedCar = cars.find(c => c.id === selectedCarId);
+  const filteredDocs = carDocs.filter(d => d.carId === selectedCarId && (docFilter === "all" || d.docType === docFilter));
 
   return (
     <div className="space-y-4">
@@ -160,7 +185,6 @@ export default function DriversPage() {
                   </Button>
                 </div>
 
-                {/* Quick stats */}
                 <div className="flex gap-3 text-xs">
                   {totalCost > 0 && (
                     <span className="text-muted-foreground">Costs: {formatCurrency(totalCost)}</span>
@@ -172,15 +196,14 @@ export default function DriversPage() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="text-xs h-7 flex-1" onClick={() => { setSelectedCarId(car.id); }}>
+                  <Button variant="outline" size="sm" className="text-xs h-7 flex-1" onClick={() => { setSelectedCarId(car.id); setDocFilter("all"); }}>
                     <FileText className="mr-1 h-3 w-3" /> Details
                   </Button>
                   <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => { setSelectedCarId(car.id); setShowCarCost(true); }}>
                     <Wrench className="mr-1 h-3 w-3" /> + Cost
                   </Button>
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => { setSelectedCarId(car.id); setShowCarDoc(true); }}>
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => { setSelectedCarId(car.id); setCdFileData(undefined); setCdFileName(undefined); setShowCarDoc(true); }}>
                     <FileText className="mr-1 h-3 w-3" /> + Doc
                   </Button>
                 </div>
@@ -222,31 +245,73 @@ export default function DriversPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="docs" className="mt-2 space-y-1">
-              {carDocs.filter(d => d.carId === selectedCarId).length === 0 ? (
+            <TabsContent value="docs" className="mt-2 space-y-2">
+              {/* Document Filter */}
+              <Select value={docFilter} onValueChange={setDocFilter}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Filter docs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Documents</SelectItem>
+                  <SelectItem value="rc">RC</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="puc">PUC</SelectItem>
+                  <SelectItem value="permit">Permit</SelectItem>
+                  <SelectItem value="fitness">Fitness</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {filteredDocs.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-4">No documents</p>
               ) : (
-                carDocs.filter(d => d.carId === selectedCarId).map(d => {
+                filteredDocs.map(d => {
                   const status = getExpiryStatus(d.expiryDate);
                   return (
-                    <div key={d.id} className={`flex items-center justify-between rounded-md border px-3 py-2 ${status === "expired" ? "border-l-[3px] border-l-destructive" : status === "expiring" ? "border-l-[3px] border-l-warning" : ""}`}>
-                      <div>
-                        <p className="text-xs font-medium uppercase">{d.docType}</p>
-                        <p className="text-xs text-muted-foreground">{d.docName}</p>
+                    <div key={d.id} className={`rounded-md border p-3 space-y-1 ${status === "expired" ? "border-l-[3px] border-l-destructive" : status === "expiring" ? "border-l-[3px] border-l-warning" : ""}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium uppercase">{d.docType}</p>
+                          <p className="text-xs text-muted-foreground">{d.docName}</p>
+                          {d.fileName && <p className="text-[10px] text-muted-foreground">📎 {d.fileName}</p>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {d.fileData && (
+                            <>
+                              <button onClick={() => setViewDoc(d.fileData!)} className="p-1 text-muted-foreground hover:text-foreground">
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => downloadDoc(d)} className="p-1 text-muted-foreground hover:text-foreground">
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        {d.expiryDate && (
-                          <p className={`text-xs tabular-nums ${status === "expired" ? "text-destructive" : status === "expiring" ? "text-warning" : "text-muted-foreground"}`}>
-                            {status === "expired" ? "Expired" : status === "expiring" ? "Expiring soon" : ""} {d.expiryDate}
-                          </p>
-                        )}
-                      </div>
+                      {d.expiryDate && (
+                        <p className={`text-xs tabular-nums ${status === "expired" ? "text-destructive" : status === "expiring" ? "text-warning" : "text-muted-foreground"}`}>
+                          {status === "expired" ? "Expired" : status === "expiring" ? "Expiring soon" : "Valid"} · {d.expiryDate}
+                        </p>
+                      )}
                     </div>
                   );
                 })
               )}
             </TabsContent>
           </Tabs>
+        </div>
+      )}
+
+      {/* View Document Modal */}
+      {viewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewDoc(null)}>
+          <div className="max-h-[80vh] max-w-[90vw] overflow-auto rounded-lg bg-background p-2">
+            {viewDoc.startsWith("data:application/pdf") ? (
+              <iframe src={viewDoc} className="h-[70vh] w-[85vw]" />
+            ) : (
+              <img src={viewDoc} alt="Document" className="max-w-full rounded" />
+            )}
+          </div>
         </div>
       )}
 
@@ -258,10 +323,7 @@ export default function DriversPage() {
             const car = cars.find(c => c.id === driver.carId);
             return (
               <div key={driver.id} className="flex items-center justify-between rounded-md border p-3">
-                <button
-                  onClick={() => navigate(`/drivers/${driver.id}`)}
-                  className="flex-1 text-left"
-                >
+                <button onClick={() => navigate(`/drivers/${driver.id}`)} className="flex-1 text-left">
                   <p className="text-sm font-medium">{driver.name}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Phone className="h-3 w-3" /> {driver.phone} · {car?.number ?? "—"} · {driver.commissionPercent}%
@@ -379,6 +441,16 @@ export default function DriversPage() {
             </div>
             <div><Label className="text-xs">Document Name</Label><Input value={cdName} onChange={e => setCdName(e.target.value)} placeholder="e.g. Annual Insurance Policy" /></div>
             <div><Label className="text-xs">Expiry Date</Label><Input type="date" value={cdExpiry} onChange={e => setCdExpiry(e.target.value)} /></div>
+            <div>
+              <Label className="text-xs">Upload Document</Label>
+              <input type="file" ref={fileInputRef} accept="image/*,.pdf" onChange={handleDocFile} className="hidden" />
+              <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => fileInputRef.current?.click()}>
+                <Paperclip className="mr-1 h-3.5 w-3.5" /> {cdFileName || "Choose File (JPG, PNG, PDF)"}
+              </Button>
+              {cdFileData && cdFileData.startsWith("data:image") && (
+                <img src={cdFileData} alt="Preview" className="mt-2 h-20 rounded border object-cover" />
+              )}
+            </div>
             <div><Label className="text-xs">Notes</Label><Input value={cdNotes} onChange={e => setCdNotes(e.target.value)} /></div>
           </div>
           <DrawerFooter>

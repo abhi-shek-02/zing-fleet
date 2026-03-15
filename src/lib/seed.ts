@@ -1,6 +1,6 @@
 import { format, subWeeks, startOfWeek, addDays } from "date-fns";
-import type { Car, Driver, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, Settlement, CarCost, CarDocument } from "@/types";
-import { saveCars, saveDrivers, saveCashEntries, saveVendorEntries, saveFuelEntries, saveOtherCostEntries, saveSettlements, saveCarCosts, saveCarDocs, isSeeded, markSeeded } from "./store";
+import type { Car, Driver, CashEntry, VendorEntry, FuelEntry, OtherCostEntry, OtherEarningEntry, Settlement, CarCost, CarDocument } from "@/types";
+import { saveCars, saveDrivers, saveCashEntries, saveVendorEntries, saveFuelEntries, saveOtherCostEntries, saveOtherEarnings, saveSettlements, saveCarCosts, saveCarDocs, isSeeded, markSeeded } from "./store";
 
 function id() { return crypto.randomUUID(); }
 function fmt(d: Date) { return format(d, "yyyy-MM-dd"); }
@@ -26,6 +26,7 @@ export function seedDummyData() {
   const vendorEntries: VendorEntry[] = [];
   const fuelEntries: FuelEntry[] = [];
   const otherEntries: OtherCostEntry[] = [];
+  const otherEarnings: OtherEarningEntry[] = [];
   const settlements: Settlement[] = [];
 
   // Generate 8 weeks of data
@@ -53,6 +54,17 @@ export function seedDummyData() {
           id: id(), driverId: drv.id, carId: car.id, weekStart, date,
           amount: vendorAmt,
           bookingId: `BK${1000 + w * 100 + di * 10 + d}`,
+        });
+      }
+
+      // Other earnings (tips, incentives, etc.)
+      if (w % 2 === 0) {
+        otherEarnings.push({
+          id: id(), driverId: drv.id, carId: car.id, weekStart,
+          date: fmt(addDays(monday, 3)),
+          amount: 200 + Math.floor(Math.random() * 500),
+          source: di % 2 === 0 ? "tip" : "incentive",
+          notes: di % 2 === 0 ? "Customer tip" : "Weekly incentive bonus",
         });
       }
 
@@ -120,6 +132,7 @@ export function seedDummyData() {
   saveVendorEntries(vendorEntries);
   saveFuelEntries(fuelEntries);
   saveOtherCostEntries(otherEntries);
+  saveOtherEarnings(otherEarnings);
   saveSettlements(settlements);
   saveCarCosts(carCosts);
   saveCarDocs(carDocs);

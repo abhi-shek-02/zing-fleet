@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getDrivers, getSettlements, saveSettlements, getVendorEntries, getFuelEntries, getOtherCostEntries, getCashEntries } from "@/lib/store";
+import { useState, useRef } from "react";
+import { getDrivers, getSettlements, saveSettlements, getVendorEntries, getFuelEntries, getOtherCostEntries, getCashEntries, getOtherEarnings } from "@/lib/store";
 import { getWeekStart, formatCurrency, generateId } from "@/lib/utils-date";
 import WeekPicker from "@/components/WeekPicker";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
-import { Plus, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, CheckCircle, AlertCircle, Paperclip, Image as ImageIcon } from "lucide-react";
 import { format } from "date-fns";
 import type { Settlement } from "@/types";
 
 export default function SettlementsPage() {
   const [week, setWeek] = useState(getWeekStart());
   const [showAdd, setShowAdd] = useState(false);
+  const [viewProof, setViewProof] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const drivers = getDrivers().filter(d => d.status === "active");
   const settlements = getSettlements().filter(s => s.weekStart === week);
@@ -23,18 +25,33 @@ export default function SettlementsPage() {
   const [sMode, setSMode] = useState("upi");
   const [sType, setSType] = useState("partial");
   const [sNotes, setSNotes] = useState("");
+  const [sProofData, setSProofData] = useState<string | undefined>();
+  const [sProofName, setSProofName] = useState<string | undefined>();
 
   const getDriverBalance = (driverId: string) => {
     const driver = drivers.find(d => d.id === driverId);
     if (!driver) return 0;
     const cash = getCashEntries().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.amount, 0);
     const vendor = getVendorEntries().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.amount, 0);
+    const otherEarn = getOtherEarnings().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.amount, 0);
     const fuel = getFuelEntries().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.cost, 0);
     const other = getOtherCostEntries().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.amount, 0);
     const settled = getSettlements().filter(e => e.driverId === driverId && e.weekStart === week).reduce((s, e) => s + e.amount, 0);
-    const commission = vendor * (driver.commissionPercent / 100);
-    const netEarnings = vendor - commission - fuel - other;
+    const totalEarnings = vendor + otherEarn;
+    const commission = totalEarnings * (driver.commissionPercent / 100);
+    const netEarnings = totalEarnings - commission - fuel - other;
     return cash - netEarnings - settled;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSProofData(reader.result as string);
+      setSProofName(file.name);
+    };
+    reader.readAsDataURL(file);
   };
 
   const addSettlement = () => {
@@ -48,10 +65,12 @@ export default function SettlementsPage() {
       type: sType as "full" | "partial",
       paymentMode: sMode as "upi" | "bank" | "cash",
       notes: sNotes || undefined,
+      proofData: sProofData,
+      proofFileName: sProofName,
     };
     const all = [...getSettlements(), settlement];
     saveSettlements(all);
-    setSDriver(""); setSAmount(""); setSNotes("");
+    setSDriver(""); setSAmount(""); setSNotes(""); setSProofData(undefined); setSProofName(undefined);
     setShowAdd(false);
   };
 
@@ -62,7 +81,6 @@ export default function SettlementsPage() {
         <div className="mt-2"><WeekPicker value={week} onChange={setWeek} /></div>
       </div>
 
-      {/* Driver Balances */}
       <div>
         <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Balances</h2>
         <div className="space-y-1">
@@ -87,7 +105,6 @@ export default function SettlementsPage() {
         <Plus className="mr-1 h-4 w-4" /> Add Settlement
       </Button>
 
-      {/* Settlement History */}
       <div>
         <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">This Week's Settlements</h2>
         {settlements.length === 0 ? (
@@ -102,13 +119,29 @@ export default function SettlementsPage() {
                     <p className="text-sm font-medium">{d?.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">{s.date} · {s.type} · {s.paymentMode}</p>
                   </div>
-                  <p className="text-sm font-semibold tabular-nums text-success">{formatCurrency(s.amount)}</p>
+                  <div className="flex items-center gap-2">
+                    {s.proofData && (
+                      <button onClick={() => setViewProof(s.proofData!)} className="text-muted-foreground hover:text-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    <p className="text-sm font-semibold tabular-nums text-success">{formatCurrency(s.amount)}</p>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* View Proof Modal */}
+      {viewProof && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setViewProof(null)}>
+          <div className="max-h-[80vh] max-w-[90vw] overflow-auto rounded-lg bg-background p-2">
+            <img src={viewProof} alt="Payment proof" className="max-w-full rounded" />
+          </div>
+        </div>
+      )}
 
       <Drawer open={showAdd} onOpenChange={setShowAdd}>
         <DrawerContent>
@@ -141,6 +174,16 @@ export default function SettlementsPage() {
               </Select>
             </div>
             <div><Label className="text-xs">Notes</Label><Input value={sNotes} onChange={e => setSNotes(e.target.value)} /></div>
+            <div>
+              <Label className="text-xs">Payment Screenshot</Label>
+              <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} className="hidden" />
+              <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => fileInputRef.current?.click()}>
+                <Paperclip className="mr-1 h-3.5 w-3.5" /> {sProofName || "Attach Screenshot"}
+              </Button>
+              {sProofData && (
+                <img src={sProofData} alt="Preview" className="mt-2 h-20 rounded border object-cover" />
+              )}
+            </div>
           </div>
           <DrawerFooter>
             <Button onClick={addSettlement} disabled={!sDriver || !sAmount}>Save</Button>
