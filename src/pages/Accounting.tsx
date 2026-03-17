@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Banknote, Receipt, Fuel, CircleDollarSign } from "lucide-react";
 import type { CashEntry, VendorEntry, FuelEntry, OtherCostEntry, OtherEarningEntry } from "@/types";
 
 export default function AccountingPage() {
@@ -100,27 +100,11 @@ export default function AccountingPage() {
   const confirmDelete = () => {
     if (!deleteConfirm) return;
     const { type, id } = deleteConfirm;
-    if (type === "cash") {
-      const all = getCashEntries().filter(e => e.id !== id);
-      saveCashEntries(all);
-      setCashEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
-    } else if (type === "vendor") {
-      const all = getVendorEntries().filter(e => e.id !== id);
-      saveVendorEntries(all);
-      setVendorEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
-    } else if (type === "fuel") {
-      const all = getFuelEntries().filter(e => e.id !== id);
-      saveFuelEntries(all);
-      setFuelEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
-    } else if (type === "other") {
-      const all = getOtherCostEntries().filter(e => e.id !== id);
-      saveOtherCostEntries(all);
-      setOtherEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
-    } else if (type === "earning") {
-      const all = getOtherEarnings().filter(e => e.id !== id);
-      saveOtherEarnings(all);
-      setEarningEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
-    }
+    if (type === "cash") { const all = getCashEntries().filter(e => e.id !== id); saveCashEntries(all); setCashEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
+    else if (type === "vendor") { const all = getVendorEntries().filter(e => e.id !== id); saveVendorEntries(all); setVendorEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
+    else if (type === "fuel") { const all = getFuelEntries().filter(e => e.id !== id); saveFuelEntries(all); setFuelEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
+    else if (type === "other") { const all = getOtherCostEntries().filter(e => e.id !== id); saveOtherCostEntries(all); setOtherEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
+    else if (type === "earning") { const all = getOtherEarnings().filter(e => e.id !== id); saveOtherEarnings(all); setEarningEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
     setDeleteConfirm(null);
   };
 
@@ -132,11 +116,11 @@ export default function AccountingPage() {
   const netEarnings = totalVendor + totalEarnings;
 
   return (
-    <div className="space-y-4">
-      <div className="sticky top-0 z-40 bg-background pb-2 pt-1">
-        <h1 className="text-lg font-semibold">Daily Entries</h1>
-        <p className="text-xs text-muted-foreground">Log cash, bookings, fuel & costs for each driver</p>
-        <div className="mt-2 space-y-2">
+    <div className="space-y-5">
+      <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
+        <h1 className="text-xl font-semibold tracking-tight">Daily Entries</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Log cash, bookings, fuel, and costs</p>
+        <div className="mt-3 space-y-2">
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
             <SelectContent>
@@ -144,21 +128,22 @@ export default function AccountingPage() {
             </SelectContent>
           </Select>
           <WeekPicker value={week} onChange={setWeek} />
-          {car && <p className="text-xs text-muted-foreground">Car: {car.number} · {car.model}</p>}
+          {car && <p className="text-[11px] text-muted-foreground">{car.number} · {car.model}</p>}
         </div>
       </div>
 
       {!driverId ? (
-        <p className="rounded-md border p-8 text-center text-sm text-muted-foreground">Select a driver to start</p>
+        <div className="rounded-lg border p-8 text-center">
+          <Banknote className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Select a driver to start</p>
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <StatCard label="Cash Collected" value={formatCurrency(totalCash)} />
-            <StatCard label="Vendor Amount" value={formatCurrency(totalVendor)} />
-            <StatCard label="Other Earnings" value={formatCurrency(totalEarnings)} variant="success" />
-            <StatCard label="Net Earnings" value={formatCurrency(netEarnings)} variant={netEarnings >= 0 ? "success" : "danger"} />
-            <StatCard label="Fuel Cost" value={formatCurrency(totalFuel)} variant="danger" />
-            <StatCard label="Other Cost" value={formatCurrency(totalOther)} variant="danger" />
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatCard label="Cash Collected" value={formatCurrency(totalCash)} icon={<Banknote className="h-3.5 w-3.5" />} />
+            <StatCard label="Vendor Amount" value={formatCurrency(totalVendor)} icon={<Receipt className="h-3.5 w-3.5" />} />
+            <StatCard label="Other Earnings" value={formatCurrency(totalEarnings)} variant="success" icon={<CircleDollarSign className="h-3.5 w-3.5" />} />
+            <StatCard label="Fuel Cost" value={formatCurrency(totalFuel)} variant="danger" icon={<Fuel className="h-3.5 w-3.5" />} />
           </div>
 
           <Tabs defaultValue="cash" className="w-full">
@@ -170,8 +155,8 @@ export default function AccountingPage() {
               <TabsTrigger value="earning" className="text-[10px] px-1">Earnings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="cash" className="mt-2 space-y-2">
-              <Button size="sm" className="w-full" onClick={() => { resetForm(); setDrawer("cash"); }}>
+            <TabsContent value="cash" className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("cash"); }}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Cash Collected
               </Button>
               {cashEntries.map(e => (
@@ -179,8 +164,8 @@ export default function AccountingPage() {
               ))}
             </TabsContent>
 
-            <TabsContent value="vendor" className="mt-2 space-y-2">
-              <Button size="sm" className="w-full" onClick={() => { resetForm(); setDrawer("vendor"); }}>
+            <TabsContent value="vendor" className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("vendor"); }}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Vendor Amount
               </Button>
               {vendorEntries.map(e => (
@@ -188,8 +173,8 @@ export default function AccountingPage() {
               ))}
             </TabsContent>
 
-            <TabsContent value="fuel" className="mt-2 space-y-2">
-              <Button size="sm" className="w-full" onClick={() => { resetForm(); setDrawer("fuel"); }}>
+            <TabsContent value="fuel" className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("fuel"); }}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Fuel Entry
               </Button>
               {fuelEntries.map(e => (
@@ -197,18 +182,18 @@ export default function AccountingPage() {
               ))}
             </TabsContent>
 
-            <TabsContent value="other" className="mt-2 space-y-2">
-              <Button size="sm" className="w-full" onClick={() => { resetForm(); setDrawer("other"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Other Cost
+            <TabsContent value="other" className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("other"); }}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add Cost
               </Button>
               {otherEntries.map(e => (
                 <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.costType} onDelete={() => setDeleteConfirm({ type: "other", id: e.id })} />
               ))}
             </TabsContent>
 
-            <TabsContent value="earning" className="mt-2 space-y-2">
-              <Button size="sm" className="w-full" onClick={() => { resetForm(); setDrawer("earning"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Other Earning
+            <TabsContent value="earning" className="mt-3 space-y-1.5">
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("earning"); }}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add Earning
               </Button>
               {earningEntries.map(e => (
                 <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.source} onDelete={() => setDeleteConfirm({ type: "earning", id: e.id })} />
@@ -221,7 +206,7 @@ export default function AccountingPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Entry</AlertDialogTitle>
-                <AlertDialogDescription>Are you sure you want to delete this entry? This action cannot be undone.</AlertDialogDescription>
+                <AlertDialogDescription>This action cannot be undone. Are you sure?</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -236,7 +221,7 @@ export default function AccountingPage() {
               <DrawerHeader><DrawerTitle>Cash Collected</DrawerTitle></DrawerHeader>
               <div className="space-y-3 px-4">
                 <div><Label className="text-xs">Date</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-                <div><Label className="text-xs">Amount (₹)</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
+                <div><Label className="text-xs">Amount</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Source</Label>
                   <Select value={fSource} onValueChange={setFSource}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -261,7 +246,7 @@ export default function AccountingPage() {
               <DrawerHeader><DrawerTitle>Vendor Amount</DrawerTitle></DrawerHeader>
               <div className="space-y-3 px-4">
                 <div><Label className="text-xs">Date</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-                <div><Label className="text-xs">Amount (₹)</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
+                <div><Label className="text-xs">Amount</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Booking ID</Label><Input value={fBookingId} onChange={e => setFBookingId(e.target.value)} /></div>
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
@@ -277,7 +262,7 @@ export default function AccountingPage() {
               <DrawerHeader><DrawerTitle>Fuel Entry</DrawerTitle></DrawerHeader>
               <div className="space-y-3 px-4">
                 <div><Label className="text-xs">Date</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-                <div><Label className="text-xs">Fuel Cost (₹)</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
+                <div><Label className="text-xs">Cost</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Liters</Label><Input type="number" value={fLiters} onChange={e => setFLiters(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Odometer (KM)</Label><Input type="number" value={fOdometer} onChange={e => setFOdometer(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Station</Label><Input value={fStation} onChange={e => setFStation(e.target.value)} /></div>
@@ -295,7 +280,7 @@ export default function AccountingPage() {
               <DrawerHeader><DrawerTitle>Other Cost</DrawerTitle></DrawerHeader>
               <div className="space-y-3 px-4">
                 <div><Label className="text-xs">Date</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-                <div><Label className="text-xs">Amount (₹)</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
+                <div><Label className="text-xs">Amount</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Type</Label>
                   <Select value={fCostType} onValueChange={setFCostType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -321,7 +306,7 @@ export default function AccountingPage() {
               <DrawerHeader><DrawerTitle>Other Earning</DrawerTitle></DrawerHeader>
               <div className="space-y-3 px-4">
                 <div><Label className="text-xs">Date</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-                <div><Label className="text-xs">Amount (₹)</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
+                <div><Label className="text-xs">Amount</Label><Input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0" /></div>
                 <div><Label className="text-xs">Source</Label>
                   <Select value={fEarnSource} onValueChange={setFEarnSource}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -349,14 +334,14 @@ export default function AccountingPage() {
 
 function EntryRow({ date, main, sub, onDelete }: { date: string; main: string; sub: string; onDelete: () => void }) {
   return (
-    <div className="flex items-center justify-between rounded-md border px-3 py-2">
+    <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5">
       <div>
-        <p className="text-xs text-muted-foreground">{date}</p>
-        <p className="text-xs capitalize">{sub}</p>
+        <p className="text-[11px] text-muted-foreground">{date}</p>
+        <p className="text-xs capitalize font-medium">{sub}</p>
       </div>
       <div className="flex items-center gap-2">
-        <p className="text-sm font-medium tabular-nums">{main}</p>
-        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive transition-colors">
+        <p className="text-sm font-semibold tabular-nums">{main}</p>
+        <button onClick={onDelete} className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>

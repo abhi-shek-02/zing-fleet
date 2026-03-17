@@ -4,7 +4,7 @@ import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { getDrivers, getCars, getCashEntries, getVendorEntries, getFuelEntries, getOtherCostEntries, getSettlements, getOtherEarnings } from "@/lib/store";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
-import { ChevronRight, AlertCircle, HelpCircle } from "lucide-react";
+import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -61,84 +61,100 @@ export default function DashboardPage() {
   }, [drivers, cars, cash, vendor, fuel, other, settlements, otherEarnings]);
 
   return (
-    <div className="space-y-4">
-      <div className="sticky top-0 z-40 bg-background pb-2 pt-1">
-        <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-lg font-semibold">ZingCab Fleet</h1>
-            <p className="text-xs text-muted-foreground">Weekly overview of your fleet business</p>
+            <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Weekly fleet overview</p>
           </div>
-          <button onClick={() => setShowHelp(!showHelp)} className="text-muted-foreground hover:text-foreground p-1">
-            <HelpCircle className="h-4.5 w-4.5" />
+          <button onClick={() => setShowHelp(!showHelp)} className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Info className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-2">
-          <WeekPicker value={week} onChange={setWeek} />
-        </div>
+        <WeekPicker value={week} onChange={setWeek} />
       </div>
 
+      {/* Help panel */}
       {showHelp && (
-        <div className="rounded-lg border bg-secondary/50 p-3 space-y-1.5 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground text-sm">📊 Understanding your dashboard</p>
-          <p><span className="font-medium text-foreground">Vendor Amount</span> = Total booking fare (from Savari, etc.)</p>
-          <p><span className="font-medium text-foreground">Cash Collected</span> = Cash drivers handed to you</p>
-          <p><span className="font-medium text-foreground">Commission</span> = Driver's share (e.g. 30% of earnings)</p>
-          <p><span className="font-medium text-foreground">Net Profit</span> = Earnings − Commission − Fuel − Other Costs</p>
-          <p><span className="font-medium text-foreground">Pending</span> = Money a driver still owes you</p>
-          <button onClick={() => setShowHelp(false)} className="text-xs underline mt-1">Got it</button>
+        <div className="rounded-lg border bg-card p-4 space-y-2 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
+            <Info className="h-4 w-4 text-primary" /> Understanding your numbers
+          </p>
+          <div className="grid gap-1.5">
+            <p><span className="font-medium text-foreground">Vendor Amount</span> — Total booking fare from platforms</p>
+            <p><span className="font-medium text-foreground">Cash Collected</span> — Cash drivers handed to you</p>
+            <p><span className="font-medium text-foreground">Commission</span> — Driver's share (% of total earnings)</p>
+            <p><span className="font-medium text-foreground">Net Profit</span> — Earnings minus commission, fuel, and costs</p>
+          </div>
+          <button onClick={() => setShowHelp(false)} className="text-xs text-primary font-medium mt-1">Dismiss</button>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard label="Cash Collected" value={formatCurrency(totals.totalCash)} hint="Cash drivers gave you" />
-        <StatCard label="Vendor Amount" value={formatCurrency(totals.totalVendor)} hint="Total booking fares" />
-        <StatCard label="Other Earnings" value={formatCurrency(totals.totalOtherEarn)} variant="success" hint="Tips, bonuses, etc." />
-        <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" hint="Total fuel spent" />
-        <StatCard label="Driver Commission" value={formatCurrency(totals.totalCommission)} hint="Driver's cut from earnings" />
-        <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" hint="Settled with drivers" />
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <StatCard label="Cash Collected" value={formatCurrency(totals.totalCash)} icon={<Banknote className="h-3.5 w-3.5" />} hint="From drivers" />
+        <StatCard label="Vendor Amount" value={formatCurrency(totals.totalVendor)} icon={<Receipt className="h-3.5 w-3.5" />} hint="Booking fares" />
+        <StatCard label="Other Earnings" value={formatCurrency(totals.totalOtherEarn)} variant="success" icon={<CircleDollarSign className="h-3.5 w-3.5" />} hint="Tips, bonuses" />
+        <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" icon={<Fuel className="h-3.5 w-3.5" />} />
+        <StatCard label="Commission" value={formatCurrency(totals.totalCommission)} icon={<Users className="h-3.5 w-3.5" />} hint="Driver's cut" />
+        <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" icon={<TrendingUp className="h-3.5 w-3.5" />} />
       </div>
 
-      <div className="rounded-md border p-3">
-        <p className="text-xs text-muted-foreground font-medium">Your Net Profit</p>
-        <p className="text-[10px] text-muted-foreground">Earnings − Commission − Fuel − Other Costs</p>
-        <p className={`mt-1 text-2xl font-semibold tabular-nums ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
+      {/* Net Profit */}
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Earnings - Commission - Fuel - Other Costs</p>
+          </div>
+          <TrendingUp className={`h-5 w-5 ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`} />
+        </div>
+        <p className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
           {formatCurrency(totals.netProfit)}
         </p>
       </div>
 
+      {/* Driver Summary */}
       <div>
-        <h2 className="mb-1 text-sm font-semibold">Driver Summary</h2>
-        <p className="mb-2 text-[11px] text-muted-foreground">Tap a driver to see full breakdown</p>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold">Drivers</h2>
+          <span className="text-[10px] text-muted-foreground">{driverSummary.length} active</span>
+        </div>
+
         {driverSummary.length === 0 ? (
-          <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">
-            No active drivers. Go to Drivers tab to add one.
-          </p>
+          <div className="rounded-lg border p-6 text-center">
+            <Users className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No active drivers</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Add drivers in the Fleet tab</p>
+          </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {driverSummary.map(({ driver, car, dVendor, dOtherEarn, pending }) => (
               <button
                 key={driver.id}
                 onClick={() => navigate(`/drivers/${driver.id}?week=${week}`)}
-                className="flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors hover:bg-secondary"
+                className="flex w-full items-center justify-between rounded-lg border bg-card p-3 text-left transition-all hover:shadow-sm hover:border-primary/20 active:scale-[0.99]"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{driver.name}</p>
-                  <p className="text-xs text-muted-foreground">{car?.number ?? "No car"}</p>
+                  <p className="text-[11px] text-muted-foreground">{car?.number ?? "No car"} · {driver.commissionPercent}%</p>
                 </div>
-                <div className="flex items-center gap-2 text-right">
+                <div className="flex items-center gap-2.5 text-right">
                   <div>
-                    <p className="text-sm font-medium tabular-nums">{formatCurrency(dVendor + dOtherEarn)}</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(dVendor + dOtherEarn)}</p>
                     {pending > 0 && (
-                      <p className="flex items-center gap-1 text-xs text-destructive">
-                        <AlertCircle className="h-3 w-3" />
+                      <p className="flex items-center justify-end gap-0.5 text-[10px] text-destructive font-medium">
+                        <AlertTriangle className="h-2.5 w-2.5" />
                         Owes {formatCurrency(pending)}
                       </p>
                     )}
                     {pending <= 0 && Math.abs(pending) < 1 && (
-                      <p className="text-xs text-success">✓ Settled</p>
+                      <p className="text-[10px] text-success font-medium">Settled</p>
                     )}
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                 </div>
               </button>
             ))}
