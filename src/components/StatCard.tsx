@@ -5,9 +5,10 @@ interface StatCardProps {
   value: string;
   icon?: ReactNode;
   variant?: "default" | "success" | "danger";
+  hint?: string;
 }
 
-export default function StatCard({ label, value, variant = "default", icon }: StatCardProps) {
+export default function StatCard({ label, value, variant = "default", icon, hint }: StatCardProps) {
   const borderColor =
     variant === "success"
       ? "border-l-success"
@@ -22,6 +23,7 @@ export default function StatCard({ label, value, variant = "default", icon }: St
         {icon}
       </div>
       <p className="mt-1 text-lg font-semibold tabular-nums">{value}</p>
+      {hint && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{hint}</p>}
     </div>
   );
 }

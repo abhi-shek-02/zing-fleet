@@ -1,73 +1,89 @@
-# Welcome to your Lovable project
+# ZingCab Fleet — Driver Accounting & Fleet Management
 
-## Project info
+> A mobile-first admin tool for small cab businesses to track driver earnings, fuel costs, settlements, and profit analytics.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚕 What is ZingCab Fleet?
 
-## How can I edit this code?
+ZingCab Fleet helps cab fleet owners manage the money side of their business. If you have 3–20 cars with drivers, this app gives you a clear picture of:
 
-There are several ways of editing your application.
+- **How much each driver earned** (from bookings)
+- **How much each driver owes you** (after their commission)
+- **Your real profit** per car, per driver, per week
+- **Fuel efficiency** — which cars are guzzling fuel
+- **Who's been paid** and who hasn't
 
-**Use Lovable**
+## 📱 How to Use
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Login
+- Default PIN: `1234`
 
-Changes made via Lovable will be committed automatically to this repo.
+### Weekly Flow (How your week works)
 
-**Use your preferred IDE**
+1. **Monday–Sunday**: Drivers operate your cars, collect cash, do bookings
+2. **During the week**: You (or drivers) log entries in the **Entries** tab:
+   - **Cash Collected** — cash the driver hands to you
+   - **Vendor Amount** — actual booking fare (from Savari, direct bookings, etc.)
+   - **Fuel** — fuel fills with odometer reading
+   - **Other Costs** — tolls, parking, maintenance
+   - **Other Earnings** — tips, bonuses
+3. **End of week**: Go to **Pay** tab to see who owes what and record payments
+4. **Anytime**: Check **Insights** tab for profit trends, fuel efficiency, driver rankings
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Understanding Settlements (Pay Tab)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+This is the most important concept:
 
-Follow these steps:
+```
+Your Share = Total Earnings − Driver Commission − Fuel − Other Costs
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Driver's Balance = Cash They Collected − Your Share − Previous Payments
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+If positive → Driver owes you money
+If negative → You owe the driver
+If zero    → All settled ✓
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+**Example:**
+- Vendor bookings this week: ₹10,000
+- Driver commission (30%): ₹3,000 (driver keeps this)
+- Fuel cost: ₹2,000
+- Other costs: ₹500
+- **Your share**: ₹10,000 − ₹3,000 − ₹2,000 − ₹500 = **₹4,500**
+- Driver collected ₹6,000 in cash
+- **Driver owes you**: ₹6,000 − ₹4,500 = **₹1,500**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🗂️ App Sections
+
+| Tab | What it does |
+|-----|-------------|
+| **Home** | Weekly dashboard — see all numbers at a glance |
+| **Fleet** | Manage drivers, cars, car documents & maintenance costs |
+| **Entries** | Log daily financial entries (cash, vendor, fuel, costs) |
+| **Pay** | Settle balances with drivers, attach payment proofs |
+| **Insights** | Analytics: profit per car, fuel efficiency, driver rankings |
+
+## 🛠️ Tech Stack
+
+- **React** + **TypeScript** + **Vite**
+- **Tailwind CSS** + **shadcn/ui**
+- **Recharts** for analytics charts
+- **localStorage** for data persistence (no backend needed)
+
+## 🚀 Getting Started
+
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open on your phone or use mobile view in browser. PIN: `1234`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📊 Key Features
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Real-time calculations** — all totals update instantly
+- **Fuel efficiency tracking** — KM/L from odometer readings
+- **Car document management** — upload RC, insurance, PUC with expiry alerts
+- **Payment proof upload** — attach UPI/bank screenshots to settlements
+- **Driver profit leaderboard** — see who generates most profit
+- **Actionable alerts** — warnings for low mileage, loss-making cars
+- **Mobile-first design** — built for one-handed phone use

@@ -134,7 +134,8 @@ export default function AccountingPage() {
   return (
     <div className="space-y-4">
       <div className="sticky top-0 z-40 bg-background pb-2 pt-1">
-        <h1 className="text-lg font-semibold">Accounting</h1>
+        <h1 className="text-lg font-semibold">Daily Entries</h1>
+        <p className="text-xs text-muted-foreground">Log cash, bookings, fuel & costs for each driver</p>
         <div className="mt-2 space-y-2">
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>

@@ -4,10 +4,11 @@ import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { getDrivers, getCars, getCashEntries, getVendorEntries, getFuelEntries, getOtherCostEntries, getSettlements, getOtherEarnings } from "@/lib/store";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
-import { ChevronRight, AlertCircle } from "lucide-react";
+import { ChevronRight, AlertCircle, HelpCircle } from "lucide-react";
 
 export default function DashboardPage() {
   const [week, setWeek] = useState(getWeekStart());
+  const [showHelp, setShowHelp] = useState(false);
   const navigate = useNavigate();
 
   const drivers = getDrivers();
@@ -63,34 +64,54 @@ export default function DashboardPage() {
     <div className="space-y-4">
       <div className="sticky top-0 z-40 bg-background pb-2 pt-1">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <div>
+            <h1 className="text-lg font-semibold">ZingCab Fleet</h1>
+            <p className="text-xs text-muted-foreground">Weekly overview of your fleet business</p>
+          </div>
+          <button onClick={() => setShowHelp(!showHelp)} className="text-muted-foreground hover:text-foreground p-1">
+            <HelpCircle className="h-4.5 w-4.5" />
+          </button>
         </div>
         <div className="mt-2">
           <WeekPicker value={week} onChange={setWeek} />
         </div>
       </div>
 
+      {showHelp && (
+        <div className="rounded-lg border bg-secondary/50 p-3 space-y-1.5 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground text-sm">📊 Understanding your dashboard</p>
+          <p><span className="font-medium text-foreground">Vendor Amount</span> = Total booking fare (from Savari, etc.)</p>
+          <p><span className="font-medium text-foreground">Cash Collected</span> = Cash drivers handed to you</p>
+          <p><span className="font-medium text-foreground">Commission</span> = Driver's share (e.g. 30% of earnings)</p>
+          <p><span className="font-medium text-foreground">Net Profit</span> = Earnings − Commission − Fuel − Other Costs</p>
+          <p><span className="font-medium text-foreground">Pending</span> = Money a driver still owes you</p>
+          <button onClick={() => setShowHelp(false)} className="text-xs underline mt-1">Got it</button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
-        <StatCard label="Cash Collected" value={formatCurrency(totals.totalCash)} />
-        <StatCard label="Vendor Amount" value={formatCurrency(totals.totalVendor)} />
-        <StatCard label="Other Earnings" value={formatCurrency(totals.totalOtherEarn)} variant="success" />
-        <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" />
-        <StatCard label="Commission" value={formatCurrency(totals.totalCommission)} />
-        <StatCard label="Settlements" value={formatCurrency(totals.totalSettled)} variant="success" />
+        <StatCard label="Cash Collected" value={formatCurrency(totals.totalCash)} hint="Cash drivers gave you" />
+        <StatCard label="Vendor Amount" value={formatCurrency(totals.totalVendor)} hint="Total booking fares" />
+        <StatCard label="Other Earnings" value={formatCurrency(totals.totalOtherEarn)} variant="success" hint="Tips, bonuses, etc." />
+        <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" hint="Total fuel spent" />
+        <StatCard label="Driver Commission" value={formatCurrency(totals.totalCommission)} hint="Driver's cut from earnings" />
+        <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" hint="Settled with drivers" />
       </div>
 
       <div className="rounded-md border p-3">
-        <p className="text-xs text-muted-foreground font-medium">Net Profit (Vendor + Other − Commission − Costs)</p>
+        <p className="text-xs text-muted-foreground font-medium">Your Net Profit</p>
+        <p className="text-[10px] text-muted-foreground">Earnings − Commission − Fuel − Other Costs</p>
         <p className={`mt-1 text-2xl font-semibold tabular-nums ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
           {formatCurrency(totals.netProfit)}
         </p>
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-semibold">Driver Summary</h2>
+        <h2 className="mb-1 text-sm font-semibold">Driver Summary</h2>
+        <p className="mb-2 text-[11px] text-muted-foreground">Tap a driver to see full breakdown</p>
         {driverSummary.length === 0 ? (
           <p className="rounded-md border p-4 text-center text-sm text-muted-foreground">
-            No active drivers. Add drivers to get started.
+            No active drivers. Go to Drivers tab to add one.
           </p>
         ) : (
           <div className="space-y-1">
@@ -110,8 +131,11 @@ export default function DashboardPage() {
                     {pending > 0 && (
                       <p className="flex items-center gap-1 text-xs text-destructive">
                         <AlertCircle className="h-3 w-3" />
-                        {formatCurrency(pending)}
+                        Owes {formatCurrency(pending)}
                       </p>
+                    )}
+                    {pending <= 0 && Math.abs(pending) < 1 && (
+                      <p className="text-xs text-success">✓ Settled</p>
                     )}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
