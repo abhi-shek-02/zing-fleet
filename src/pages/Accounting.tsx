@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { getDrivers, getCars, getCashEntries, saveCashEntries, getVendorEntries, saveVendorEntries, getFuelEntries, saveFuelEntries, getOtherCostEntries, saveOtherCostEntries, getOtherEarnings, saveOtherEarnings } from "@/lib/store";
-import { getWeekStart, formatCurrency, generateId } from "@/lib/utils-date";
+import { useDrivers, useCars, useCashEntries, useVendorEntries, useFuelEntries, useOtherCosts, useOtherEarnings, useCreateCashEntry, useDeleteCashEntry, useCreateVendorEntry, useDeleteVendorEntry, useCreateFuelEntry, useDeleteFuelEntry, useCreateOtherCost, useDeleteOtherCost, useCreateOtherEarning, useDeleteOtherEarning } from "@/hooks/useApi";
+import { getWeekStart, formatCurrency } from "@/lib/utils-date";
+import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
@@ -12,33 +13,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Banknote, Receipt, Fuel, CircleDollarSign } from "lucide-react";
-import type { CashEntry, VendorEntry, FuelEntry, OtherCostEntry, OtherEarningEntry } from "@/types";
 
 export default function AccountingPage() {
   const [week, setWeek] = useState(getWeekStart());
   const [driverId, setDriverId] = useState("");
-  const drivers = getDrivers().filter(d => d.status === "active");
-  const cars = getCars();
-  const driver = drivers.find(d => d.id === driverId);
-  const car = cars.find(c => c.id === driver?.carId);
 
-  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
-  const [vendorEntries, setVendorEntries] = useState<VendorEntry[]>([]);
-  const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
-  const [otherEntries, setOtherEntries] = useState<OtherCostEntry[]>([]);
-  const [earningEntries, setEarningEntries] = useState<OtherEarningEntry[]>([]);
+  const driversQ = useDrivers();
+  const carsQ = useCars();
+  const drivers = (driversQ.data ?? []).filter((d: any) => d.status === "active");
+  const cars = carsQ.data ?? [];
+  const driver = drivers.find((d: any) => d.id === driverId);
+  const car = cars.find((c: any) => c.id === driver?.carId);
+
+  const cashQ = useCashEntries(driverId ? { driver_id: driverId, week_start: week } : undefined);
+  const vendorQ = useVendorEntries(driverId ? { driver_id: driverId, week_start: week } : undefined);
+  const fuelQ = useFuelEntries(driverId ? { driver_id: driverId, week_start: week } : undefined);
+  const otherQ = useOtherCosts(driverId ? { driver_id: driverId, week_start: week } : undefined);
+  const earningQ = useOtherEarnings(driverId ? { driver_id: driverId, week_start: week } : undefined);
+
+  const cashEntries = cashQ.data ?? [];
+  const vendorEntries = vendorQ.data ?? [];
+  const fuelEntries = fuelQ.data ?? [];
+  const otherEntries = otherQ.data ?? [];
+  const earningEntries = earningQ.data ?? [];
+
+  const createCash = useCreateCashEntry();
+  const deleteCash = useDeleteCashEntry();
+  const createVendor = useCreateVendorEntry();
+  const deleteVendor = useDeleteVendorEntry();
+  const createFuel = useCreateFuelEntry();
+  const deleteFuel = useDeleteFuelEntry();
+  const createOther = useCreateOtherCost();
+  const deleteOther = useDeleteOtherCost();
+  const createEarning = useCreateOtherEarning();
+  const deleteEarning = useDeleteOtherEarning();
 
   const [drawer, setDrawer] = useState<"cash" | "vendor" | "fuel" | "other" | "earning" | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
-
-  useEffect(() => {
-    if (!driverId) return;
-    setCashEntries(getCashEntries().filter(e => e.driverId === driverId && e.weekStart === week));
-    setVendorEntries(getVendorEntries().filter(e => e.driverId === driverId && e.weekStart === week));
-    setFuelEntries(getFuelEntries().filter(e => e.driverId === driverId && e.weekStart === week));
-    setOtherEntries(getOtherCostEntries().filter(e => e.driverId === driverId && e.weekStart === week));
-    setEarningEntries(getOtherEarnings().filter(e => e.driverId === driverId && e.weekStart === week));
-  }, [driverId, week]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const [fDate, setFDate] = useState(today);
@@ -57,63 +68,48 @@ export default function AccountingPage() {
     setFBookingId(""); setFLiters(""); setFOdometer(""); setFStation(""); setFCostType("toll"); setFEarnSource("tip");
   };
 
-  const addCash = () => {
-    const entry: CashEntry = { id: generateId(), driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), source: fSource as any, notes: fNotes || undefined };
-    const all = [...getCashEntries(), entry];
-    saveCashEntries(all);
-    setCashEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
+  const addCash = async () => {
+    await createCash.mutateAsync({ driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), source: fSource, notes: fNotes || undefined });
     resetForm(); setDrawer(null);
   };
 
-  const addVendor = () => {
-    const entry: VendorEntry = { id: generateId(), driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), bookingId: fBookingId || undefined, notes: fNotes || undefined };
-    const all = [...getVendorEntries(), entry];
-    saveVendorEntries(all);
-    setVendorEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
+  const addVendor = async () => {
+    await createVendor.mutateAsync({ driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), bookingId: fBookingId || undefined, notes: fNotes || undefined });
     resetForm(); setDrawer(null);
   };
 
-  const addFuel = () => {
-    const entry: FuelEntry = { id: generateId(), driverId, carId: car?.id || "", weekStart: week, date: fDate, cost: Number(fAmount), liters: Number(fLiters), odometer: Number(fOdometer), station: fStation || undefined, notes: fNotes || undefined };
-    const all = [...getFuelEntries(), entry];
-    saveFuelEntries(all);
-    setFuelEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
+  const addFuel = async () => {
+    await createFuel.mutateAsync({ driverId, carId: car?.id || "", weekStart: week, date: fDate, cost: Number(fAmount), liters: Number(fLiters), odometer: Number(fOdometer), station: fStation || undefined, notes: fNotes || undefined });
     resetForm(); setDrawer(null);
   };
 
-  const addOther = () => {
-    const entry: OtherCostEntry = { id: generateId(), driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), costType: fCostType as any, notes: fNotes || undefined };
-    const all = [...getOtherCostEntries(), entry];
-    saveOtherCostEntries(all);
-    setOtherEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
+  const addOther = async () => {
+    await createOther.mutateAsync({ driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), costType: fCostType, notes: fNotes || undefined });
     resetForm(); setDrawer(null);
   };
 
-  const addEarning = () => {
-    const entry: OtherEarningEntry = { id: generateId(), driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), source: fEarnSource, notes: fNotes || undefined };
-    const all = [...getOtherEarnings(), entry];
-    saveOtherEarnings(all);
-    setEarningEntries(all.filter(e => e.driverId === driverId && e.weekStart === week));
+  const addEarning = async () => {
+    await createEarning.mutateAsync({ driverId, carId: car?.id || "", weekStart: week, date: fDate, amount: Number(fAmount), source: fEarnSource, notes: fNotes || undefined });
     resetForm(); setDrawer(null);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirm) return;
     const { type, id } = deleteConfirm;
-    if (type === "cash") { const all = getCashEntries().filter(e => e.id !== id); saveCashEntries(all); setCashEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
-    else if (type === "vendor") { const all = getVendorEntries().filter(e => e.id !== id); saveVendorEntries(all); setVendorEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
-    else if (type === "fuel") { const all = getFuelEntries().filter(e => e.id !== id); saveFuelEntries(all); setFuelEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
-    else if (type === "other") { const all = getOtherCostEntries().filter(e => e.id !== id); saveOtherCostEntries(all); setOtherEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
-    else if (type === "earning") { const all = getOtherEarnings().filter(e => e.id !== id); saveOtherEarnings(all); setEarningEntries(all.filter(e => e.driverId === driverId && e.weekStart === week)); }
+    if (type === "cash") await deleteCash.mutateAsync(id);
+    else if (type === "vendor") await deleteVendor.mutateAsync(id);
+    else if (type === "fuel") await deleteFuel.mutateAsync(id);
+    else if (type === "other") await deleteOther.mutateAsync(id);
+    else if (type === "earning") await deleteEarning.mutateAsync(id);
     setDeleteConfirm(null);
   };
 
-  const totalCash = cashEntries.reduce((s, e) => s + e.amount, 0);
-  const totalVendor = vendorEntries.reduce((s, e) => s + e.amount, 0);
-  const totalFuel = fuelEntries.reduce((s, e) => s + e.cost, 0);
-  const totalOther = otherEntries.reduce((s, e) => s + e.amount, 0);
-  const totalEarnings = earningEntries.reduce((s, e) => s + e.amount, 0);
-  const netEarnings = totalVendor + totalEarnings;
+  const totalCash = cashEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalVendor = vendorEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalFuel = fuelEntries.reduce((s: number, e: any) => s + Number(e.cost), 0);
+  const totalEarnings = earningEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
+
+  if (driversQ.isLoading) return <LoadingSpinner label="Loading..." />;
 
   return (
     <div className="space-y-5">
@@ -123,9 +119,7 @@ export default function AccountingPage() {
         <div className="mt-3 space-y-2">
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
-            <SelectContent>
-              {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-            </SelectContent>
+            <SelectContent>{drivers.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
           </Select>
           <WeekPicker value={week} onChange={setWeek} />
           {car && <p className="text-[11px] text-muted-foreground">{car.number} · {car.model}</p>}
@@ -156,52 +150,31 @@ export default function AccountingPage() {
             </TabsList>
 
             <TabsContent value="cash" className="mt-3 space-y-1.5">
-              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("cash"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Cash Collected
-              </Button>
-              {cashEntries.map(e => (
-                <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.source} onDelete={() => setDeleteConfirm({ type: "cash", id: e.id })} />
-              ))}
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("cash"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Cash Collected</Button>
+              {cashEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.source} onDelete={() => setDeleteConfirm({ type: "cash", id: e.id })} />)}
             </TabsContent>
 
             <TabsContent value="vendor" className="mt-3 space-y-1.5">
-              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("vendor"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Vendor Amount
-              </Button>
-              {vendorEntries.map(e => (
-                <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.bookingId || "—"} onDelete={() => setDeleteConfirm({ type: "vendor", id: e.id })} />
-              ))}
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("vendor"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Vendor Amount</Button>
+              {vendorEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.bookingId || "—"} onDelete={() => setDeleteConfirm({ type: "vendor", id: e.id })} />)}
             </TabsContent>
 
             <TabsContent value="fuel" className="mt-3 space-y-1.5">
-              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("fuel"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Fuel Entry
-              </Button>
-              {fuelEntries.map(e => (
-                <EntryRow key={e.id} date={e.date} main={formatCurrency(e.cost)} sub={`${e.liters}L · ${e.odometer}km`} onDelete={() => setDeleteConfirm({ type: "fuel", id: e.id })} />
-              ))}
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("fuel"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Fuel Entry</Button>
+              {fuelEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.cost))} sub={`${e.liters}L · ${e.odometer}km`} onDelete={() => setDeleteConfirm({ type: "fuel", id: e.id })} />)}
             </TabsContent>
 
             <TabsContent value="other" className="mt-3 space-y-1.5">
-              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("other"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Cost
-              </Button>
-              {otherEntries.map(e => (
-                <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.costType} onDelete={() => setDeleteConfirm({ type: "other", id: e.id })} />
-              ))}
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("other"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Cost</Button>
+              {otherEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.costType} onDelete={() => setDeleteConfirm({ type: "other", id: e.id })} />)}
             </TabsContent>
 
             <TabsContent value="earning" className="mt-3 space-y-1.5">
-              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("earning"); }}>
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Earning
-              </Button>
-              {earningEntries.map(e => (
-                <EntryRow key={e.id} date={e.date} main={formatCurrency(e.amount)} sub={e.source} onDelete={() => setDeleteConfirm({ type: "earning", id: e.id })} />
-              ))}
+              <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("earning"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Earning</Button>
+              {earningEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.source} onDelete={() => setDeleteConfirm({ type: "earning", id: e.id })} />)}
             </TabsContent>
           </Tabs>
 
-          {/* Delete Confirmation */}
           <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -225,17 +198,13 @@ export default function AccountingPage() {
                 <div><Label className="text-xs">Source</Label>
                   <Select value={fSource} onValueChange={setFSource}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="savari">Savari</SelectItem>
-                      <SelectItem value="direct">Direct</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="savari">Savari</SelectItem><SelectItem value="direct">Direct</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
               <DrawerFooter>
-                <Button onClick={addCash} disabled={!fAmount}>Save</Button>
+                <Button onClick={addCash} disabled={!fAmount || createCash.isPending}>{createCash.isPending ? "Saving..." : "Save"}</Button>
                 <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
               </DrawerFooter>
             </DrawerContent>
@@ -251,7 +220,7 @@ export default function AccountingPage() {
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
               <DrawerFooter>
-                <Button onClick={addVendor} disabled={!fAmount}>Save</Button>
+                <Button onClick={addVendor} disabled={!fAmount || createVendor.isPending}>{createVendor.isPending ? "Saving..." : "Save"}</Button>
                 <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
               </DrawerFooter>
             </DrawerContent>
@@ -269,7 +238,7 @@ export default function AccountingPage() {
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
               <DrawerFooter>
-                <Button onClick={addFuel} disabled={!fAmount || !fLiters}>Save</Button>
+                <Button onClick={addFuel} disabled={!fAmount || !fLiters || createFuel.isPending}>{createFuel.isPending ? "Saving..." : "Save"}</Button>
                 <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
               </DrawerFooter>
             </DrawerContent>
@@ -284,18 +253,13 @@ export default function AccountingPage() {
                 <div><Label className="text-xs">Type</Label>
                   <Select value={fCostType} onValueChange={setFCostType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="toll">Toll</SelectItem>
-                      <SelectItem value="parking">Parking</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="toll">Toll</SelectItem><SelectItem value="parking">Parking</SelectItem><SelectItem value="maintenance">Maintenance</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
               <DrawerFooter>
-                <Button onClick={addOther} disabled={!fAmount}>Save</Button>
+                <Button onClick={addOther} disabled={!fAmount || createOther.isPending}>{createOther.isPending ? "Saving..." : "Save"}</Button>
                 <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
               </DrawerFooter>
             </DrawerContent>
@@ -310,18 +274,13 @@ export default function AccountingPage() {
                 <div><Label className="text-xs">Source</Label>
                   <Select value={fEarnSource} onValueChange={setFEarnSource}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tip">Tip</SelectItem>
-                      <SelectItem value="incentive">Incentive</SelectItem>
-                      <SelectItem value="bonus">Bonus</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="tip">Tip</SelectItem><SelectItem value="incentive">Incentive</SelectItem><SelectItem value="bonus">Bonus</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div><Label className="text-xs">Notes</Label><Input value={fNotes} onChange={e => setFNotes(e.target.value)} /></div>
               </div>
               <DrawerFooter>
-                <Button onClick={addEarning} disabled={!fAmount}>Save</Button>
+                <Button onClick={addEarning} disabled={!fAmount || createEarning.isPending}>{createEarning.isPending ? "Saving..." : "Save"}</Button>
                 <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
               </DrawerFooter>
             </DrawerContent>

@@ -3,7 +3,6 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isAuthenticated } from "@/lib/store";
-import { seedDummyData } from "@/lib/seed";
 import BottomNav from "@/components/BottomNav";
 import LoginPage from "@/pages/Login";
 import DashboardPage from "@/pages/Dashboard";
@@ -15,10 +14,15 @@ import ReportsPage from "@/pages/Reports";
 import AnalyticsPage from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
 
-// Seed dummy data on first load
-seedDummyData();
-
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;

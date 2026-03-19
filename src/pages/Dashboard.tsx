@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
-import { getDrivers, getCars, getCashEntries, getVendorEntries, getFuelEntries, getOtherCostEntries, getSettlements, getOtherEarnings } from "@/lib/store";
+import { useDrivers, useCars, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllSettlements, useAllOtherEarnings } from "@/hooks/useApi";
+import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
 import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
@@ -11,28 +12,47 @@ export default function DashboardPage() {
   const [showHelp, setShowHelp] = useState(false);
   const navigate = useNavigate();
 
-  const drivers = getDrivers();
-  const cars = getCars();
-  const cash = getCashEntries().filter((e) => e.weekStart === week);
-  const vendor = getVendorEntries().filter((e) => e.weekStart === week);
-  const fuel = getFuelEntries().filter((e) => e.weekStart === week);
-  const other = getOtherCostEntries().filter((e) => e.weekStart === week);
-  const settlements = getSettlements().filter((s) => s.weekStart === week);
-  const otherEarnings = getOtherEarnings().filter((e) => e.weekStart === week);
+  const driversQ = useDrivers();
+  const carsQ = useCars();
+  const cashQ = useAllCash();
+  const vendorQ = useAllVendor();
+  const fuelQ = useAllFuel();
+  const otherQ = useAllOtherCosts();
+  const settlementsQ = useAllSettlements();
+  const otherEarningsQ = useAllOtherEarnings();
+
+  const isLoading = driversQ.isLoading || carsQ.isLoading || cashQ.isLoading || vendorQ.isLoading || fuelQ.isLoading || otherQ.isLoading || settlementsQ.isLoading || otherEarningsQ.isLoading;
+  const isError = driversQ.isError || cashQ.isError || vendorQ.isError;
+
+  const drivers = driversQ.data ?? [];
+  const cars = carsQ.data ?? [];
+  const allCash = cashQ.data ?? [];
+  const allVendor = vendorQ.data ?? [];
+  const allFuel = fuelQ.data ?? [];
+  const allOther = otherQ.data ?? [];
+  const allSettlements = settlementsQ.data ?? [];
+  const allOtherEarnings = otherEarningsQ.data ?? [];
+
+  const cash = allCash.filter((e: any) => e.weekStart === week);
+  const vendor = allVendor.filter((e: any) => e.weekStart === week);
+  const fuel = allFuel.filter((e: any) => e.weekStart === week);
+  const other = allOther.filter((e: any) => e.weekStart === week);
+  const settlements = allSettlements.filter((s: any) => s.weekStart === week);
+  const otherEarnings = allOtherEarnings.filter((e: any) => e.weekStart === week);
 
   const totals = useMemo(() => {
-    const totalCash = cash.reduce((s, e) => s + e.amount, 0);
-    const totalVendor = vendor.reduce((s, e) => s + e.amount, 0);
-    const totalOtherEarn = otherEarnings.reduce((s, e) => s + e.amount, 0);
-    const totalFuel = fuel.reduce((s, e) => s + e.cost, 0);
-    const totalOther = other.reduce((s, e) => s + e.amount, 0);
-    const totalSettled = settlements.reduce((s, e) => s + e.amount, 0);
+    const totalCash = cash.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const totalVendor = vendor.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const totalOtherEarn = otherEarnings.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const totalFuel = fuel.reduce((s: number, e: any) => s + Number(e.cost), 0);
+    const totalOther = other.reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const totalSettled = settlements.reduce((s: number, e: any) => s + Number(e.amount), 0);
 
     let totalCommission = 0;
-    drivers.forEach((d) => {
-      const driverVendor = vendor.filter((v) => v.driverId === d.id).reduce((s, v) => s + v.amount, 0);
-      const driverOtherEarn = otherEarnings.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
-      totalCommission += (driverVendor + driverOtherEarn) * (d.commissionPercent / 100);
+    drivers.forEach((d: any) => {
+      const driverVendor = vendor.filter((v: any) => v.driverId === d.id).reduce((s: number, v: any) => s + Number(v.amount), 0);
+      const driverOtherEarn = otherEarnings.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      totalCommission += (driverVendor + driverOtherEarn) * (Number(d.commissionPercent) / 100);
     });
 
     const netEarnings = totalVendor + totalOtherEarn;
@@ -42,17 +62,17 @@ export default function DashboardPage() {
   }, [week, cash, vendor, fuel, other, settlements, drivers, otherEarnings]);
 
   const driverSummary = useMemo(() => {
-    return drivers.filter(d => d.status === "active").map((d) => {
-      const car = cars.find((c) => c.id === d.carId);
-      const dCash = cash.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
-      const dVendor = vendor.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
-      const dOtherEarn = otherEarnings.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
-      const dFuel = fuel.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.cost, 0);
-      const dOther = other.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
-      const dSettled = settlements.filter((e) => e.driverId === d.id).reduce((s, e) => s + e.amount, 0);
+    return drivers.filter((d: any) => d.status === "active").map((d: any) => {
+      const car = cars.find((c: any) => c.id === d.carId);
+      const dCash = cash.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const dVendor = vendor.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const dOtherEarn = otherEarnings.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const dFuel = fuel.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.cost), 0);
+      const dOther = other.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const dSettled = settlements.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
       const expenses = dFuel + dOther;
       const totalEarnings = dVendor + dOtherEarn;
-      const commission = totalEarnings * (d.commissionPercent / 100);
+      const commission = totalEarnings * (Number(d.commissionPercent) / 100);
       const netEarnings = totalEarnings - commission - expenses;
       const pending = dCash - netEarnings - dSettled;
 
@@ -60,9 +80,11 @@ export default function DashboardPage() {
     });
   }, [drivers, cars, cash, vendor, fuel, other, settlements, otherEarnings]);
 
+  if (isLoading) return <LoadingSpinner label="Loading dashboard..." />;
+  if (isError) return <ErrorState message="Failed to load dashboard data" onRetry={() => { driversQ.refetch(); cashQ.refetch(); vendorQ.refetch(); }} />;
+
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -76,7 +98,6 @@ export default function DashboardPage() {
         <WeekPicker value={week} onChange={setWeek} />
       </div>
 
-      {/* Help panel */}
       {showHelp && (
         <div className="rounded-lg border bg-card p-4 space-y-2 text-xs text-muted-foreground">
           <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
@@ -92,7 +113,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI Grid */}
       <div className="grid grid-cols-2 gap-2.5">
         <StatCard label="Cash Collected" value={formatCurrency(totals.totalCash)} icon={<Banknote className="h-3.5 w-3.5" />} hint="From drivers" />
         <StatCard label="Vendor Amount" value={formatCurrency(totals.totalVendor)} icon={<Receipt className="h-3.5 w-3.5" />} hint="Booking fares" />
@@ -102,7 +122,6 @@ export default function DashboardPage() {
         <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" icon={<TrendingUp className="h-3.5 w-3.5" />} />
       </div>
 
-      {/* Net Profit */}
       <div className="rounded-lg border bg-card p-4">
         <div className="flex items-center justify-between">
           <div>
@@ -116,7 +135,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Driver Summary */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold">Drivers</h2>
@@ -131,7 +149,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {driverSummary.map(({ driver, car, dVendor, dOtherEarn, pending }) => (
+            {driverSummary.map(({ driver, car, dVendor, dOtherEarn, pending }: any) => (
               <button
                 key={driver.id}
                 onClick={() => navigate(`/drivers/${driver.id}?week=${week}`)}

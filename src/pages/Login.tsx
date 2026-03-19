@@ -1,21 +1,33 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "@/lib/store";
+import { setAuthenticated } from "@/lib/store";
+import { api, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock } from "lucide-react";
+import { Lock, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (login(pin)) {
+  const handleLogin = async () => {
+    if (!pin) return;
+    setLoading(true);
+    setError("");
+    try {
+      await api.login(pin);
+      setAuthenticated();
       navigate("/");
-    } else {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.status === 401 ? "Invalid PIN" : err.message);
+      } else {
+        setError("Cannot reach server. Is the backend running?");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,12 +51,12 @@ export default function LoginPage() {
             className="text-center text-lg tracking-[0.5em] h-12"
             maxLength={6}
           />
-          {error && <p className="text-xs text-destructive text-center">Invalid PIN. Try 1234.</p>}
-          <Button onClick={handleLogin} className="w-full h-11" disabled={!pin}>
-            Unlock
+          {error && <p className="text-xs text-destructive text-center">{error}</p>}
+          <Button onClick={handleLogin} className="w-full h-11" disabled={!pin || loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {loading ? "Verifying..." : "Unlock"}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center">Default PIN: 1234</p>
       </div>
     </div>
   );
