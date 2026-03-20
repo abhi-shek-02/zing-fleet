@@ -25,14 +25,34 @@ const authRoutes = require("./routes/auth");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// CORS: comma-separated FRONTEND_URL + sensible defaults (Vite ports + production Vercel)
+const defaultCorsOrigins = [
+  "http://localhost:5173",
+  "http://localhost:8080",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:8080",
+  "https://zing-fleet.vercel.app",
+];
+const extraFromEnv = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const corsOrigins = [...new Set([...defaultCorsOrigins, ...extraFromEnv])];
+
 // ─── Middleware ───────────────────────────────────────────
 app.use(helmet());
 app.use(morgan("short"));
 app.use(express.json({ limit: "10mb" }));
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      callback(null, false);
+    },
+    credentials: true,
+  })
+);
 
 // ─── Routes ──────────────────────────────────────────────
 app.use("/health", healthRoutes);
