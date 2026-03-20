@@ -78,6 +78,14 @@ npm run dev
 
 Open on your phone or use mobile view in browser. PIN: `1234`.
 
+### Production (Vercel + API)
+
+The frontend **cannot** call `http://…` from an `https://` site — the browser blocks it (mixed content).
+
+The app defaults to **`https://fleet.zingcab.in`** for API calls (see `src/lib/api.ts`). You can override with **`VITE_API_BASE_URL`** in `.env` or Vercel for staging/local backends.
+
+On the **backend**, set `FRONTEND_URL` to your deployed app URL (e.g. `https://zing-fleet.vercel.app`) so CORS allows the browser.
+
 ## 📊 Key Features
 
 - **Real-time calculations** — all totals update instantly

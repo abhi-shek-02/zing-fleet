@@ -4,8 +4,28 @@
  * snake_case ↔ camelCase mapping handled transparently.
  */
 
-/** Production backend — fixed URL (do not use env for deploy target). */
-const API_BASE = "http://193.203.160.116:3001";
+/**
+ * Backend base URL. Must be HTTPS when the app is served over HTTPS (Vercel),
+ * or the browser blocks requests (mixed content).
+ *
+ * Default is the production API. Override locally with `VITE_API_BASE_URL` in `.env`
+ * (optional) — e.g. `http://localhost:3001` for development.
+ */
+const DEFAULT_API_BASE = "https://fleet.zingcab.in";
+
+function apiBase(): string {
+  const raw = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (raw) return raw.replace(/\/$/, "");
+  return DEFAULT_API_BASE;
+}
+
+const API_BASE = apiBase();
+
+if (import.meta.env.PROD && typeof window !== "undefined" && window.location.protocol === "https:" && API_BASE.startsWith("http:")) {
+  console.error(
+    "[ZingFleet] API is HTTP but the site is HTTPS — use https:// or set VITE_API_BASE_URL to an https:// API URL."
+  );
+}
 
 // ─── snake_case ↔ camelCase helpers ──────────────────────
 
