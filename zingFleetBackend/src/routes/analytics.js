@@ -65,14 +65,14 @@ router.get("/driver/:id", async (req, res, next) => {
     const filters = { driver_id: id, week_start };
     const eq = (q) => q.eq("driver_id", id).eq("week_start", week_start);
 
-    const [cash, vendor, fuel, costs, earnings, settlements, driver] = await Promise.all([
+    const [cash, vendor, fuel, costs, earnings, settlements, commRes] = await Promise.all([
       eq(supabase.from("cash_entries").select("amount")),
       eq(supabase.from("vendor_entries").select("amount")),
       eq(supabase.from("fuel_entries").select("cost")),
       eq(supabase.from("other_cost_entries").select("amount")),
       eq(supabase.from("other_earning_entries").select("amount")),
       eq(supabase.from("settlements").select("amount")),
-      supabase.from("drivers").select("commission_percent").eq("id", id).single(),
+      supabase.rpc("get_driver_commission_percent", { p_driver_id: id, p_week_start: week_start }),
     ]);
 
     const sum = (arr, key) => (arr.data || []).reduce((s, r) => s + Number(r[key] || 0), 0);
@@ -82,7 +82,8 @@ router.get("/driver/:id", async (req, res, next) => {
     const totalFuel = sum(fuel, "cost");
     const totalOtherCosts = sum(costs, "amount");
     const totalSettled = sum(settlements, "amount");
-    const commPct = driver.data?.commission_percent || 30;
+    if (commRes.error) throw new AppError(commRes.error.message, 500);
+    const commPct = commRes.data != null ? Number(commRes.data) : 30;
     const totalEarnings = totalVendor + totalOtherEarn;
     const commission = totalEarnings * (commPct / 100);
     const netEarnings = totalEarnings - commission - totalFuel - totalOtherCosts;

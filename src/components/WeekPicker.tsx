@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { addWeeks, format, parseISO, subWeeks } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { getWeekSessions } from "@/lib/utils-date";
+import { getWeekLabel, getWeekStart } from "@/lib/utils-date";
 
 interface WeekPickerProps {
   value: string;
@@ -8,28 +9,25 @@ interface WeekPickerProps {
 }
 
 export default function WeekPicker({ value, onChange }: WeekPickerProps) {
-  const sessions = getWeekSessions(12);
-  const currentIdx = sessions.findIndex((s) => s.start === value);
-
-  const prev = () => {
-    if (currentIdx < sessions.length - 1) onChange(sessions[currentIdx + 1].start);
+  const thisMonday = getWeekStart();
+  const goOlder = () => {
+    onChange(format(subWeeks(parseISO(value), 1), "yyyy-MM-dd"));
   };
-  const next = () => {
-    if (currentIdx > 0) onChange(sessions[currentIdx - 1].start);
+  const goNewer = () => {
+    onChange(format(addWeeks(parseISO(value), 1), "yyyy-MM-dd"));
   };
-
-  const current = sessions.find((s) => s.start === value);
+  const atOrAfterCurrentWeek = value >= thisMonday;
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border bg-card px-2 py-1.5">
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={prev} disabled={currentIdx >= sessions.length - 1}>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={goOlder} aria-label="Older week">
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <div className="flex items-center gap-1.5">
-        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-sm font-medium">{current?.label ?? "Select week"}</span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium truncate">{getWeekLabel(value)}</span>
       </div>
-      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={next} disabled={currentIdx <= 0}>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={goNewer} disabled={atOrAfterCurrentWeek} aria-label="Newer week">
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>

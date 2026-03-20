@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { useDrivers, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllSettlements, useCreateSettlement } from "@/hooks/useApi";
+import { useDrivers, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllSettlements, useCreateSettlement, useCommissionHistory } from "@/hooks/useApi";
+import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
+import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinancialOnWeekChange";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
@@ -13,6 +15,7 @@ import { format } from "date-fns";
 
 export default function SettlementsPage() {
   const [week, setWeek] = useState(getWeekStart());
+  useRefetchAllFinancialOnWeekChange(week);
   const [showAdd, setShowAdd] = useState(false);
   const [expandedDriver, setExpandedDriver] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -26,8 +29,9 @@ export default function SettlementsPage() {
   const otherEarnQ = useAllOtherEarnings();
   const settlementsQ = useAllSettlements();
   const createSettlement = useCreateSettlement();
+  const commissionHQ = useCommissionHistory();
 
-  const isLoading = driversQ.isLoading || cashQ.isLoading || vendorQ.isLoading;
+  const isLoading = driversQ.isLoading || cashQ.isLoading || vendorQ.isLoading || commissionHQ.isLoading;
 
   const drivers = (driversQ.data ?? []).filter((d: any) => d.status === "active");
   const allCash = cashQ.data ?? [];
@@ -36,6 +40,7 @@ export default function SettlementsPage() {
   const allOther = otherQ.data ?? [];
   const allOtherEarn = otherEarnQ.data ?? [];
   const allSettlements = settlementsQ.data ?? [];
+  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
 
   const settlements = allSettlements.filter((s: any) => s.weekStart === week);
 
@@ -57,7 +62,8 @@ export default function SettlementsPage() {
     const alreadySettled = allSettlements.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
 
     const totalEarnings = vendorAmount + otherEarnings;
-    const commission = totalEarnings * (Number(driver.commissionPercent) / 100);
+    const pct = commissionPercentForWeek(driverId, week, commissionRows);
+    const commission = totalEarnings * (pct / 100);
     const yourShare = totalEarnings - commission - fuelCost - otherCost;
     const balance = cashCollected - yourShare - alreadySettled;
 
@@ -168,7 +174,7 @@ export default function SettlementsPage() {
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Calculation</p>
                     <Row label="Vendor Earnings" value={formatCurrency(b.vendorAmount)} />
                     {b.otherEarnings > 0 && <Row label="+ Other Earnings" value={formatCurrency(b.otherEarnings)} />}
-                    <Row label={`- Commission (${d.commissionPercent}%)`} value={formatCurrency(b.commission)} negative />
+                    <Row label={`- Commission (${commissionPercentForWeek(d.id, week, commissionRows)}%)`} value={formatCurrency(b.commission)} negative />
                     <Row label="- Fuel Cost" value={formatCurrency(b.fuelCost)} negative />
                     {b.otherCost > 0 && <Row label="- Other Costs" value={formatCurrency(b.otherCost)} negative />}
                     <div className="border-t pt-1.5 flex justify-between font-semibold text-foreground">

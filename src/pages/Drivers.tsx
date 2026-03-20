@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDrivers, useCars, useCarCosts, useCarDocs, useCreateDriver, useUpdateDriver, useCreateCar, useUpdateCar, useCreateCarCost, useCreateCarDoc } from "@/hooks/useApi";
-import { formatCurrency } from "@/lib/utils-date";
+import { formatCurrency, getWeekStart } from "@/lib/utils-date";
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import type { CarCost, CarDocument } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -84,8 +84,9 @@ export default function DriversPage() {
 
   const saveDriver = async () => {
     if (!dName || !dCar) return;
-    const data = { name: dName, phone: dPhone, carId: dCar, commissionPercent: Number(dCommission) || 30, status: "active" };
+    const data: Record<string, unknown> = { name: dName, phone: dPhone, carId: dCar, commissionPercent: Number(dCommission) || 30, status: "active" };
     if (editDriverId) {
+      data.commissionEffectiveWeekStart = getWeekStart();
       await updateDriver.mutateAsync({ id: editDriverId, ...data });
     } else {
       await createDriver.mutateAsync(data);

@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
-import { useDrivers, useCars, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllSettlements, useAllOtherEarnings } from "@/hooks/useApi";
+import { useDrivers, useCars, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllSettlements, useAllOtherEarnings, useCommissionHistory } from "@/hooks/useApi";
+import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
+import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinancialOnWeekChange";
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
@@ -12,6 +14,8 @@ export default function DashboardPage() {
   const [showHelp, setShowHelp] = useState(false);
   const navigate = useNavigate();
 
+  useRefetchAllFinancialOnWeekChange(week);
+
   const driversQ = useDrivers();
   const carsQ = useCars();
   const cashQ = useAllCash();
@@ -20,8 +24,9 @@ export default function DashboardPage() {
   const otherQ = useAllOtherCosts();
   const settlementsQ = useAllSettlements();
   const otherEarningsQ = useAllOtherEarnings();
+  const commissionHQ = useCommissionHistory();
 
-  const isLoading = driversQ.isLoading || carsQ.isLoading || cashQ.isLoading || vendorQ.isLoading || fuelQ.isLoading || otherQ.isLoading || settlementsQ.isLoading || otherEarningsQ.isLoading;
+  const isLoading = driversQ.isLoading || carsQ.isLoading || cashQ.isLoading || vendorQ.isLoading || fuelQ.isLoading || otherQ.isLoading || settlementsQ.isLoading || otherEarningsQ.isLoading || commissionHQ.isLoading;
   const isError = driversQ.isError || cashQ.isError || vendorQ.isError;
 
   const drivers = driversQ.data ?? [];
@@ -39,6 +44,7 @@ export default function DashboardPage() {
   const other = allOther.filter((e: any) => e.weekStart === week);
   const settlements = allSettlements.filter((s: any) => s.weekStart === week);
   const otherEarnings = allOtherEarnings.filter((e: any) => e.weekStart === week);
+  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
 
   const totals = useMemo(() => {
     const totalCash = cash.reduce((s: number, e: any) => s + Number(e.amount), 0);
@@ -52,14 +58,15 @@ export default function DashboardPage() {
     drivers.forEach((d: any) => {
       const driverVendor = vendor.filter((v: any) => v.driverId === d.id).reduce((s: number, v: any) => s + Number(v.amount), 0);
       const driverOtherEarn = otherEarnings.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
-      totalCommission += (driverVendor + driverOtherEarn) * (Number(d.commissionPercent) / 100);
+      const pct = commissionPercentForWeek(d.id, week, commissionRows);
+      totalCommission += (driverVendor + driverOtherEarn) * (pct / 100);
     });
 
     const netEarnings = totalVendor + totalOtherEarn;
     const netProfit = netEarnings - totalCommission - totalFuel - totalOther;
 
     return { totalCash, totalVendor, totalOtherEarn, totalFuel, totalOther, totalCommission, totalSettled, netProfit };
-  }, [week, cash, vendor, fuel, other, settlements, drivers, otherEarnings]);
+  }, [week, cash, vendor, fuel, other, settlements, drivers, otherEarnings, commissionRows]);
 
   const driverSummary = useMemo(() => {
     return drivers.filter((d: any) => d.status === "active").map((d: any) => {
@@ -72,13 +79,14 @@ export default function DashboardPage() {
       const dSettled = settlements.filter((e: any) => e.driverId === d.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
       const expenses = dFuel + dOther;
       const totalEarnings = dVendor + dOtherEarn;
-      const commission = totalEarnings * (Number(d.commissionPercent) / 100);
+      const pct = commissionPercentForWeek(d.id, week, commissionRows);
+      const commission = totalEarnings * (pct / 100);
       const netEarnings = totalEarnings - commission - expenses;
       const pending = dCash - netEarnings - dSettled;
 
-      return { driver: d, car, dCash, dVendor, dOtherEarn, expenses, dSettled, pending, commission };
+      return { driver: d, car, dCash, dVendor, dOtherEarn, expenses, dSettled, pending, commission, weekPct: pct };
     });
-  }, [drivers, cars, cash, vendor, fuel, other, settlements, otherEarnings]);
+  }, [drivers, cars, cash, vendor, fuel, other, settlements, otherEarnings, commissionRows, week]);
 
   if (isLoading) return <LoadingSpinner label="Loading dashboard..." />;
   if (isError) return <ErrorState message="Failed to load dashboard data" onRetry={() => { driversQ.refetch(); cashQ.refetch(); vendorQ.refetch(); }} />;
@@ -149,7 +157,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {driverSummary.map(({ driver, car, dVendor, dOtherEarn, pending }: any) => (
+            {driverSummary.map(({ driver, car, dVendor, dOtherEarn, pending, weekPct }: any) => (
               <button
                 key={driver.id}
                 onClick={() => navigate(`/drivers/${driver.id}?week=${week}`)}
@@ -157,7 +165,7 @@ export default function DashboardPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{driver.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{car?.number ?? "No car"} · {driver.commissionPercent}%</p>
+                  <p className="text-[11px] text-muted-foreground">{car?.number ?? "No car"} · {weekPct}%</p>
                 </div>
                 <div className="flex items-center gap-2.5 text-right">
                   <div>

@@ -4,11 +4,8 @@
  * snake_case ↔ camelCase mapping handled transparently.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL as string | undefined;
-
-if (!API_BASE) {
-  console.warn("[ZingFleet] VITE_API_URL not set. API calls will fail. Set it in your .env file.");
-}
+/** Production backend — fixed URL (do not use env for deploy target). */
+const API_BASE = "http://193.203.160.116:3001";
 
 // ─── snake_case ↔ camelCase helpers ──────────────────────
 
@@ -53,8 +50,6 @@ export class ApiError extends Error {
 // ─── Core fetch wrapper ──────────────────────────────────
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (!API_BASE) throw new ApiError("Backend URL not configured. Set VITE_API_URL in your .env file.", 0);
-
   const url = `${API_BASE}${path}`;
   let res: Response;
   try {
@@ -111,6 +106,8 @@ export const api = {
 
   // Drivers
   getDrivers: () => request<any[]>("/api/drivers"),
+  /** Effective commission % rows — use with commissionPercentForWeek() for each week. */
+  getCommissionHistory: () => request<any[]>("/api/drivers/commission-history"),
   getDriver: (id: string) => request<any>(`/api/drivers/${id}`),
   createDriver: (data: Record<string, unknown>) =>
     request<any>("/api/drivers", { method: "POST", body: body(data) }),

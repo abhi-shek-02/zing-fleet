@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { useDrivers, useCars, useAllVendor, useAllFuel, useAllOtherCosts, useSettings, useUpdateSettings } from "@/hooks/useApi";
+import { useDrivers, useCars, useAllVendor, useAllFuel, useAllOtherCosts, useSettings, useUpdateSettings, useCommissionHistory } from "@/hooks/useApi";
+import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { LoadingSpinner } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
@@ -18,8 +19,9 @@ export default function ReportsPage() {
   const otherQ = useAllOtherCosts();
   const settingsQ = useSettings();
   const updateSettings = useUpdateSettings();
+  const commissionHQ = useCommissionHistory();
 
-  const isLoading = driversQ.isLoading || carsQ.isLoading || vendorQ.isLoading;
+  const isLoading = driversQ.isLoading || carsQ.isLoading || vendorQ.isLoading || commissionHQ.isLoading;
 
   const drivers = driversQ.data ?? [];
   const cars = carsQ.data ?? [];
@@ -27,6 +29,7 @@ export default function ReportsPage() {
   const allFuel = fuelQ.data ?? [];
   const allOther = otherQ.data ?? [];
   const settings = settingsQ.data ?? { fuelThreshold: 10 };
+  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
   const [threshold, setThreshold] = useState(Number(settings.fuelThreshold));
 
   const vendor = allVendor.filter((e: any) => e.weekStart === week);
@@ -39,11 +42,12 @@ export default function ReportsPage() {
       const carVendor = vendor.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
       const carFuel = fuel.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.cost), 0);
       const carOther = other.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
-      const commission = carVendor * ((Number(driver?.commissionPercent) || 30) / 100);
+      const pct = driver?.id ? commissionPercentForWeek(driver.id, week, commissionRows) : 30;
+      const commission = carVendor * (pct / 100);
       const profit = carVendor - commission - carFuel - carOther;
       return { car, driver, carVendor, carFuel, carOther, commission, profit };
     });
-  }, [cars, drivers, vendor, fuel, other]);
+  }, [cars, drivers, vendor, fuel, other, week, commissionRows]);
 
   const fuelEfficiency = useMemo(() => {
     const sorted = [...fuel].sort((a: any, b: any) => Number(a.odometer) - Number(b.odometer));

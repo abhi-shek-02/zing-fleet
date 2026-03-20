@@ -17,6 +17,10 @@ export function useDrivers() {
   return useQuery({ queryKey: ["drivers"], queryFn: api.getDrivers });
 }
 
+export function useCommissionHistory() {
+  return useQuery({ queryKey: ["commissionHistory"], queryFn: api.getCommissionHistory });
+}
+
 export function useDriver(id: string) {
   return useQuery({ queryKey: ["drivers", id], queryFn: () => api.getDriver(id), enabled: !!id });
 }
@@ -30,6 +34,7 @@ export function useCashEntries(params?: { driver_id?: string; week_start?: strin
     queryKey: ["cash", params],
     queryFn: () => api.getCashEntries(params),
     enabled: !!params?.driver_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -38,6 +43,7 @@ export function useVendorEntries(params?: { driver_id?: string; week_start?: str
     queryKey: ["vendor", params],
     queryFn: () => api.getVendorEntries(params),
     enabled: !!params?.driver_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -46,6 +52,7 @@ export function useFuelEntries(params?: { driver_id?: string; week_start?: strin
     queryKey: ["fuel", params],
     queryFn: () => api.getFuelEntries(params),
     enabled: !!params?.driver_id || !!params?.car_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -54,6 +61,7 @@ export function useOtherCosts(params?: { driver_id?: string; week_start?: string
     queryKey: ["otherCosts", params],
     queryFn: () => api.getOtherCosts(params),
     enabled: !!params?.driver_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -62,6 +70,7 @@ export function useOtherEarnings(params?: { driver_id?: string; week_start?: str
     queryKey: ["otherEarnings", params],
     queryFn: () => api.getOtherEarnings(params),
     enabled: !!params?.driver_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -70,6 +79,7 @@ export function useSettlements(params?: { driver_id?: string; week_start?: strin
     queryKey: ["settlements", params],
     queryFn: () => api.getSettlements(params),
     enabled: !!params?.driver_id || !params,
+    staleTime: params?.week_start !== undefined ? 0 : undefined,
   });
 }
 
@@ -122,7 +132,10 @@ export function useCreateDriver() {
   const onError = useErrorToast();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => api.createDriver(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["drivers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["drivers"] });
+      qc.invalidateQueries({ queryKey: ["commissionHistory"] });
+    },
     onError,
   });
 }
@@ -132,7 +145,10 @@ export function useUpdateDriver() {
   const onError = useErrorToast();
   return useMutation({
     mutationFn: ({ id, ...data }: Record<string, unknown> & { id: string }) => api.updateDriver(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["drivers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["drivers"] });
+      qc.invalidateQueries({ queryKey: ["commissionHistory"] });
+    },
     onError,
   });
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useDrivers, useCars, useCashEntries, useVendorEntries, useFuelEntries, useOtherCosts, useOtherEarnings, useCreateCashEntry, useDeleteCashEntry, useCreateVendorEntry, useDeleteVendorEntry, useCreateFuelEntry, useDeleteFuelEntry, useCreateOtherCost, useDeleteOtherCost, useCreateOtherEarning, useDeleteOtherEarning } from "@/hooks/useApi";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
@@ -30,6 +30,23 @@ export default function AccountingPage() {
   const fuelQ = useFuelEntries(driverId ? { driver_id: driverId, week_start: week } : undefined);
   const otherQ = useOtherCosts(driverId ? { driver_id: driverId, week_start: week } : undefined);
   const earningQ = useOtherEarnings(driverId ? { driver_id: driverId, week_start: week } : undefined);
+
+  const prevWeekRef = useRef(week);
+  useEffect(() => {
+    if (!driverId) prevWeekRef.current = week;
+  }, [week, driverId]);
+  useEffect(() => {
+    if (!driverId) return;
+    if (prevWeekRef.current === week) return;
+    prevWeekRef.current = week;
+    void Promise.all([
+      cashQ.refetch(),
+      vendorQ.refetch(),
+      fuelQ.refetch(),
+      otherQ.refetch(),
+      earningQ.refetch(),
+    ]);
+  }, [week, driverId, cashQ, vendorQ, fuelQ, otherQ, earningQ]);
 
   const cashEntries = cashQ.data ?? [];
   const vendorEntries = vendorQ.data ?? [];

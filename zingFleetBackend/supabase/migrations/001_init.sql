@@ -282,3 +282,29 @@ SELECT
 FROM public.drivers d
 LEFT JOIN public.cash_entries ce ON ce.driver_id = d.id
 GROUP BY d.id, d.name, d.commission_percent, ce.week_start;
+
+-- Drop existing policies and recreate for all roles
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.cars;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.drivers;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.car_costs;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.car_documents;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.cash_entries;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.vendor_entries;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.fuel_entries;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.other_cost_entries;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.other_earning_entries;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.settlements;
+DROP POLICY IF EXISTS "Allow all for authenticated" ON public.app_settings;
+
+-- Allow everything for anon + authenticated (for development)
+CREATE POLICY "Allow all" ON public.cars FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.drivers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.car_costs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.car_documents FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.cash_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.vendor_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.fuel_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.other_cost_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.other_earning_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.settlements FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON public.app_settings FOR ALL USING (true) WITH CHECK (true);

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useDrivers, useCars, useCashEntries, useVendorEntries, useFuelEntries, useOtherCosts, useSettlements, useOtherEarnings } from "@/hooks/useApi";
+import { useDrivers, useCars, useCashEntries, useVendorEntries, useFuelEntries, useOtherCosts, useSettlements, useOtherEarnings, useCommissionHistory } from "@/hooks/useApi";
+import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
@@ -20,8 +21,9 @@ export default function DriverDetailPage() {
   const otherQ = useOtherCosts({ driver_id: id, week_start: week });
   const settlementsQ = useSettlements({ driver_id: id, week_start: week });
   const otherEarningsQ = useOtherEarnings({ driver_id: id, week_start: week });
+  const commissionHQ = useCommissionHistory();
 
-  const isLoading = driversQ.isLoading || cashQ.isLoading || vendorQ.isLoading;
+  const isLoading = driversQ.isLoading || cashQ.isLoading || vendorQ.isLoading || commissionHQ.isLoading;
 
   const driver = (driversQ.data ?? []).find((d: any) => d.id === id);
   const car = (carsQ.data ?? []).find((c: any) => c.id === driver?.carId);
@@ -31,6 +33,8 @@ export default function DriverDetailPage() {
   const other = otherQ.data ?? [];
   const settlements = settlementsQ.data ?? [];
   const otherEarnings = otherEarningsQ.data ?? [];
+  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
+  const weekCommissionPct = id ? commissionPercentForWeek(id, week, commissionRows) : 30;
 
   const totals = useMemo(() => {
     const totalCash = cash.reduce((s: number, e: any) => s + Number(e.amount), 0);
@@ -40,11 +44,11 @@ export default function DriverDetailPage() {
     const totalOther = other.reduce((s: number, e: any) => s + Number(e.amount), 0);
     const totalSettled = settlements.reduce((s: number, e: any) => s + Number(e.amount), 0);
     const totalEarnings = totalVendor + totalOtherEarn;
-    const commission = totalEarnings * ((Number(driver?.commissionPercent) || 30) / 100);
+    const commission = totalEarnings * (weekCommissionPct / 100);
     const netEarnings = totalEarnings - commission - totalFuel - totalOther;
     const pending = totalCash - netEarnings - totalSettled;
     return { totalCash, totalVendor, totalOtherEarn, totalFuel, totalOther, commission, totalSettled, netEarnings, pending };
-  }, [cash, vendor, fuel, other, settlements, driver, otherEarnings]);
+  }, [cash, vendor, fuel, other, settlements, driver, otherEarnings, weekCommissionPct]);
 
   const ledger = useMemo(() => {
     const items: { date: string; desc: string; amount: number; type: "credit" | "debit" }[] = [];
@@ -64,7 +68,7 @@ export default function DriverDetailPage() {
     <div className="space-y-5">
       <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
         <h1 className="text-xl font-semibold tracking-tight">{driver.name}</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{car?.number} · {car?.model} · {driver.commissionPercent}% commission</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{car?.number} · {car?.model} · {weekCommissionPct}% commission (this week)</p>
         <div className="mt-3"><WeekPicker value={week} onChange={setWeek} /></div>
       </div>
 
@@ -74,7 +78,7 @@ export default function DriverDetailPage() {
         <StatCard label="Other Earnings" value={formatCurrency(totals.totalOtherEarn)} variant="success" />
         <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" />
         <StatCard label="Other Costs" value={formatCurrency(totals.totalOther)} />
-        <StatCard label="Commission" value={formatCurrency(totals.commission)} hint={`${driver.commissionPercent}% of earnings`} />
+        <StatCard label="Commission" value={formatCurrency(totals.commission)} hint={`${weekCommissionPct}% of earnings`} />
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
