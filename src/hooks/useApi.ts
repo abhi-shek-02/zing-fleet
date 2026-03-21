@@ -283,6 +283,17 @@ export function useCreateSettlement() {
   });
 }
 
+export function useUpdateSettlement() {
+  const qc = useQueryClient();
+  const onError = useErrorToast();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api.updateSettlement(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settlements"] }),
+    onError,
+  });
+}
+
 export function useDeleteSettlement() {
   const qc = useQueryClient();
   const onError = useErrorToast();

@@ -1,5 +1,17 @@
 import { useState, useRef } from "react";
-import { useDrivers, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllSettlements, useCreateSettlement, useSettlementModeHistory } from "@/hooks/useApi";
+import {
+  useDrivers,
+  useAllCash,
+  useAllVendor,
+  useAllFuel,
+  useAllOtherCosts,
+  useAllOtherEarnings,
+  useAllSettlements,
+  useCreateSettlement,
+  useUpdateSettlement,
+  useDeleteSettlement,
+  useSettlementModeHistory,
+} from "@/hooks/useApi";
 import {
   computeSettlement,
   settlementModeForWeek,
@@ -15,9 +27,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
-import { Plus, CheckCircle, Info, CreditCard, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
+import { Plus, CheckCircle, Info, CreditCard, ChevronDown, ChevronUp, Paperclip, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export default function SettlementsPage() {
@@ -36,7 +57,13 @@ export default function SettlementsPage() {
   const otherEarnQ = useAllOtherEarnings();
   const settlementsQ = useAllSettlements();
   const createSettlement = useCreateSettlement();
+  const updateSettlement = useUpdateSettlement();
+  const deleteSettlement = useDeleteSettlement();
   const modeHQ = useSettlementModeHistory();
+
+  const [editingSettlementId, setEditingSettlementId] = useState<string | null>(null);
+  const [deleteSettlementId, setDeleteSettlementId] = useState<string | null>(null);
+  const [sDate, setSDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
 
   const isLoading =
     driversQ.isLoading ||
@@ -80,6 +107,7 @@ export default function SettlementsPage() {
         alreadySettled: 0,
         balance: 0,
         mode: "commission_30" as const,
+        netProfit: 0,
       };
     }
 
@@ -99,6 +127,8 @@ export default function SettlementsPage() {
       otherEarning: otherEarnings,
     });
     const balance = unpaidBalance(calc.finalSettlement, alreadySettled);
+    const gross = vendorAmount + otherEarnings;
+    const netProfit = Math.round((gross - calc.driverCut - fuelCost - otherCost) * 100) / 100;
 
     return {
       cashCollected,
@@ -112,6 +142,7 @@ export default function SettlementsPage() {
       alreadySettled,
       balance,
       mode,
+      netProfit,
     };
   };
 
@@ -121,27 +152,85 @@ export default function SettlementsPage() {
     setSProofName(file.name);
   };
 
-  const addSettlement = async () => {
+  const resetPaymentForm = () => {
+    setSDriver("");
+    setSAmount("");
+    setSNotes("");
+    setSProofName(undefined);
+    setSMode("upi");
+    setSDate(format(new Date(), "yyyy-MM-dd"));
+    setEditingSettlementId(null);
+  };
+
+  const openRecordPayment = (driverId?: string) => {
+    setEditingSettlementId(null);
+    if (driverId) setSDriver(driverId);
+    setSAmount("");
+    setSNotes("");
+    setSProofName(undefined);
+    setSMode("upi");
+    setSDate(format(new Date(), "yyyy-MM-dd"));
+    setShowAdd(true);
+  };
+
+  const openEditPayment = (s: {
+    id: string;
+    driverId?: string;
+    amount: number | string;
+    paymentMode?: string;
+    notes?: string;
+    date?: string;
+  }) => {
+    setEditingSettlementId(s.id);
+    if (s.driverId) setSDriver(s.driverId);
+    setSAmount(String(s.amount));
+    setSMode(s.paymentMode || "upi");
+    setSNotes(s.notes || "");
+    setSDate(s.date || format(new Date(), "yyyy-MM-dd"));
+    setShowAdd(true);
+  };
+
+  const savePayment = async () => {
     if (!sDriver || !sAmount) return;
-    await createSettlement.mutateAsync({
-      driverId: sDriver,
-      weekStart: week,
-      date: format(new Date(), "yyyy-MM-dd"),
-      amount: Number(sAmount),
-      type: "partial",
-      paymentMode: sMode,
-      notes: sNotes || undefined,
-      proofFileName: sProofName,
-    });
-    setSDriver(""); setSAmount(""); setSNotes(""); setSProofName(undefined);
+    if (editingSettlementId) {
+      await updateSettlement.mutateAsync({
+        id: editingSettlementId,
+        data: {
+          amount: Number(sAmount),
+          date: sDate,
+          paymentMode: sMode,
+          notes: sNotes || undefined,
+        },
+      });
+    } else {
+      await createSettlement.mutateAsync({
+        driverId: sDriver,
+        weekStart: week,
+        date: sDate,
+        amount: Number(sAmount),
+        type: "partial",
+        paymentMode: sMode,
+        notes: sNotes || undefined,
+        proofFileName: sProofName,
+      });
+    }
+    resetPaymentForm();
     setShowAdd(false);
+  };
+
+  const confirmDeletePayment = async () => {
+    if (!deleteSettlementId) return;
+    await deleteSettlement.mutateAsync(deleteSettlementId);
+    setDeleteSettlementId(null);
   };
 
   const handlePayFull = (driverId: string) => {
     const breakdown = getDriverBreakdown(driverId);
     if (breakdown.balance <= 0) return;
+    setEditingSettlementId(null);
     setSDriver(driverId);
     setSAmount(String(Math.round(breakdown.balance)));
+    setSDate(format(new Date(), "yyyy-MM-dd"));
     setShowAdd(true);
   };
 
@@ -175,7 +264,7 @@ export default function SettlementsPage() {
           <div className="space-y-1.5 leading-relaxed">
             <p><span className="font-medium text-foreground">30% commission</span> — Net earning uses vendor + other earnings minus other costs; driver keeps 30% of that net; fuel is separate in the settlement.</p>
             <p><span className="font-medium text-foreground">50% profit sharing</span> — Net is all earnings minus all costs; driver keeps half; settlement uses cash vs vendor plus that share.</p>
-            <p>Record payments to reduce the remaining balance.</p>
+            <p>Record payments to reduce the remaining balance. If a payment was entered wrong, use <span className="font-medium text-foreground">Edit</span> or <span className="font-medium text-foreground">Delete</span> on that row — deleting ledger entries does not remove recorded payments.</p>
           </div>
           <button type="button" onClick={() => setShowHelp(false)} className="text-xs text-primary font-medium">Dismiss</button>
         </div>
@@ -268,7 +357,12 @@ export default function SettlementsPage() {
 
                   <div className="rounded-xl border bg-card p-3 space-y-1.5 text-xs">
                     <Row label="Cash collected" value={formatCurrency(b.cashCollected)} />
-                    <Row label="Vendor + other earnings" value={formatCurrency(b.vendorAmount + b.otherEarnings)} />
+                    <Row
+                      label="Net Profit"
+                      value={formatCurrency(b.netProfit)}
+                      negative={b.netProfit < 0}
+                      positive={b.netProfit > 0}
+                    />
                     {b.fuelCost > 0 && <Row label="Fuel" value={formatCurrency(b.fuelCost)} negative />}
                     {b.otherCost > 0 && <Row label="Other costs" value={formatCurrency(b.otherCost)} negative />}
                     {b.alreadySettled > 0 && <Row label="Payments recorded" value={formatCurrency(b.alreadySettled)} positive />}
@@ -283,16 +377,41 @@ export default function SettlementsPage() {
                   {driverSettlements.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Payment History</p>
-                      {driverSettlements.map((s: { id: string; date: string; paymentMode?: string; notes?: string; amount: number | string }) => (
-                        <div key={s.id} className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-3.5 w-3.5 text-success shrink-0" />
-                            <div>
+                      {driverSettlements.map((s: { id: string; driverId?: string; date: string; paymentMode?: string; notes?: string; amount: number | string }) => (
+                        <div key={s.id} className="flex items-center gap-2 rounded-lg border bg-card px-2 py-2">
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-success" />
+                            <div className="min-w-0">
                               <p className="text-xs font-medium">{s.date}</p>
-                              <p className="text-[10px] text-muted-foreground capitalize">{s.paymentMode}{s.notes ? ` — ${s.notes}` : ""}</p>
+                              <p className="text-[10px] text-muted-foreground capitalize">
+                                {s.paymentMode}
+                                {s.notes ? ` — ${s.notes}` : ""}
+                              </p>
                             </div>
                           </div>
-                          <p className="text-xs font-semibold tabular-nums text-success">{formatCurrency(Number(s.amount))}</p>
+                          <p className="text-xs font-semibold tabular-nums text-success shrink-0">{formatCurrency(Number(s.amount))}</p>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              aria-label="Edit payment"
+                              onClick={() => openEditPayment({ ...s, driverId: d.id })}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              aria-label="Delete payment"
+                              onClick={() => setDeleteSettlementId(s.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -302,7 +421,7 @@ export default function SettlementsPage() {
                     {owesYou && (
                       <Button size="sm" variant="outline" className="flex-1 text-xs h-9" onClick={() => handlePayFull(d.id)}>Settle Full</Button>
                     )}
-                    <Button size="sm" className="flex-1 text-xs h-9" onClick={() => { setSDriver(d.id); setSAmount(""); setShowAdd(true); }}>
+                    <Button size="sm" className="flex-1 text-xs h-9" onClick={() => openRecordPayment(d.id)}>
                       <Plus className="mr-1 h-3 w-3" /> Record Payment
                     </Button>
                   </div>
@@ -320,14 +439,26 @@ export default function SettlementsPage() {
         </div>
       )}
 
-      <Drawer open={showAdd} onOpenChange={setShowAdd}>
+      <Drawer
+        open={showAdd}
+        onOpenChange={(open) => {
+          setShowAdd(open);
+          if (!open) resetPaymentForm();
+        }}
+      >
         <DrawerContent>
-          <DrawerHeader><DrawerTitle>Record Payment</DrawerTitle></DrawerHeader>
+          <DrawerHeader>
+            <DrawerTitle>{editingSettlementId ? "Edit payment" : "Record payment"}</DrawerTitle>
+          </DrawerHeader>
           <div className="space-y-3 px-4">
             <div><Label className="text-xs">Driver</Label>
-              <Select value={sDriver} onValueChange={(v) => { setSDriver(v); setSAmount(""); }}>
+              <Select
+                value={sDriver}
+                disabled={!!editingSettlementId}
+                onValueChange={(v) => { setSDriver(v); setSAmount(""); }}
+              >
                 <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
-                <SelectContent>{drivers.map((d: { id: string; name: string }) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{drivers.map((dr: { id: string; name: string }) => <SelectItem key={dr.id} value={dr.id}>{dr.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {selectedDriverBreakdown && (
@@ -340,6 +471,7 @@ export default function SettlementsPage() {
                 </div>
               </div>
             )}
+            <div><Label className="text-xs">Date</Label><Input type="date" value={sDate} onChange={(e) => setSDate(e.target.value)} /></div>
             <div><Label className="text-xs">Amount</Label><Input type="number" value={sAmount} onChange={e => setSAmount(e.target.value)} placeholder="0" /></div>
             <div><Label className="text-xs">Payment Method</Label>
               <Select value={sMode} onValueChange={setSMode}>
@@ -348,22 +480,57 @@ export default function SettlementsPage() {
               </Select>
             </div>
             <div><Label className="text-xs">Notes</Label><Input value={sNotes} onChange={e => setSNotes(e.target.value)} placeholder="Reference or note" /></div>
-            <div>
-              <Label className="text-xs">Payment Screenshot</Label>
-              <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} className="hidden" />
-              <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => fileInputRef.current?.click()}>
-                <Paperclip className="mr-1.5 h-3.5 w-3.5" /> {sProofName || "Attach screenshot"}
-              </Button>
-            </div>
+            {!editingSettlementId && (
+              <div>
+                <Label className="text-xs">Payment Screenshot</Label>
+                <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} className="hidden" />
+                <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => fileInputRef.current?.click()}>
+                  <Paperclip className="mr-1.5 h-3.5 w-3.5" /> {sProofName || "Attach screenshot"}
+                </Button>
+              </div>
+            )}
           </div>
           <DrawerFooter>
-            <Button onClick={addSettlement} disabled={!sDriver || !sAmount || createSettlement.isPending}>
-              {createSettlement.isPending ? "Saving..." : "Save Payment"}
+            <Button
+              onClick={savePayment}
+              disabled={
+                !sDriver ||
+                !sAmount ||
+                createSettlement.isPending ||
+                updateSettlement.isPending
+              }
+            >
+              {createSettlement.isPending || updateSettlement.isPending
+                ? "Saving..."
+                : editingSettlementId
+                  ? "Save changes"
+                  : "Save payment"}
             </Button>
             <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <AlertDialog open={!!deleteSettlementId} onOpenChange={(o) => !o && setDeleteSettlementId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the recorded payout from the week. Balances will update immediately. This does not delete cash or vendor entries.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteSettlement.isPending}
+              onClick={() => void confirmDeletePayment()}
+            >
+              {deleteSettlement.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

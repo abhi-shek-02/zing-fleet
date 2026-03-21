@@ -184,6 +184,8 @@ export const api = {
     request<any[]>(`/api/settlements${qs(params)}`),
   createSettlement: (data: Record<string, unknown>) =>
     request<any>("/api/settlements", { method: "POST", body: body(data) }),
+  updateSettlement: (id: string, data: Record<string, unknown>) =>
+    request<any>(`/api/settlements/${id}`, { method: "PUT", body: body(data) }),
   deleteSettlement: (id: string) =>
     request<null>(`/api/settlements/${id}`, { method: "DELETE" }),
 

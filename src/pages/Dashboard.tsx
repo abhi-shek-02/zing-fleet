@@ -12,7 +12,7 @@ import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinanci
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
-import { ChevronRight, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
+import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -155,19 +155,6 @@ export default function DashboardPage() {
         <StatCard label="Fuel Cost" value={formatCurrency(totals.totalFuel)} variant="danger" icon={<Fuel className="h-3.5 w-3.5" />} />
         <StatCard label="Driver share" value={formatCurrency(totals.totalDriverShare)} icon={<Users className="h-3.5 w-3.5" />} hint="Commission / profit share" />
         <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" icon={<TrendingUp className="h-3.5 w-3.5" />} />
-      </div>
-
-      <div className="rounded-lg border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Earnings − driver share − fuel − other costs</p>
-          </div>
-          <TrendingUp className={`h-5 w-5 ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`} />
-        </div>
-        <p className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
-          {formatCurrency(totals.netProfit)}
-        </p>
       </div>
 
       <div>
