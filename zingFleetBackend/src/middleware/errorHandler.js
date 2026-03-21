@@ -1,6 +1,9 @@
 function errorHandler(err, _req, res, _next) {
-  console.error("[ZingFleet Error]", err.message);
-  console.error(err.stack);
+  if (process.env.NODE_ENV === "production") {
+    console.error("[ZingFleet]", err.message);
+  } else {
+    console.error("[ZingFleet Error]", err.message, err.stack);
+  }
 
   const status = err.statusCode || 500;
   res.status(status).json({

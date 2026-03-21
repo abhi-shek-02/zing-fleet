@@ -21,12 +21,6 @@ function apiBase(): string {
  
 const API_BASE = apiBase();
 
-if (import.meta.env.PROD && typeof window !== "undefined" && window.location.protocol === "https:" && API_BASE.startsWith("http:")) {
-  console.error(
-    "[ZingFleet] API is HTTP but the site is HTTPS — use https:// or set VITE_API_BASE_URL to an https:// API URL."
-  );
-}
-
 // ─── snake_case ↔ camelCase helpers ──────────────────────
 
 function toSnake(str: string): string {

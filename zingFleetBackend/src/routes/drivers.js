@@ -19,10 +19,6 @@ const driverUpdateSchema = driverSchema.partial().extend({
   settlement_effective_week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-function legacyCommissionPercent(mode) {
-  return mode === "profit_share_50" ? 50 : 30;
-}
-
 router.get("/", async (_req, res, next) => {
   try {
     const { data, error } = await supabase.from("drivers").select("*, cars(number, model)").order("name");
@@ -52,11 +48,7 @@ router.get("/:id", async (req, res, next) => {
 
 router.post("/", validate(driverSchema), async (req, res, next) => {
   try {
-    const row = {
-      ...req.body,
-      commission_percent: legacyCommissionPercent(req.body.settlement_mode),
-    };
-    const { data, error } = await supabase.from("drivers").insert(row).select().single();
+    const { data, error } = await supabase.from("drivers").insert(req.body).select().single();
     if (error) throw new AppError(error.message, 500);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
@@ -87,12 +79,7 @@ router.put("/:id", validate(driverUpdateSchema), async (req, res, next) => {
       if (histErr) throw new AppError(histErr.message, 500);
     }
 
-    const patch = { ...rest };
-    if (rest.settlement_mode !== undefined) {
-      patch.commission_percent = legacyCommissionPercent(rest.settlement_mode);
-    }
-
-    const { data, error } = await supabase.from("drivers").update(patch).eq("id", id).select().single();
+    const { data, error } = await supabase.from("drivers").update(rest).eq("id", id).select().single();
     if (error) throw new AppError(error.message, 500);
     res.json({ success: true, data });
   } catch (err) { next(err); }

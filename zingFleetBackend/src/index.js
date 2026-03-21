@@ -79,9 +79,6 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // ─── Start ───────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[ZingFleet] Server running on port ${PORT}`);
-  console.log(`[ZingFleet] Environment: ${process.env.NODE_ENV}`);
-});
+app.listen(PORT);
 
 module.exports = app;
