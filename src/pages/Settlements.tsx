@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { Plus, CheckCircle, Info, CreditCard, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function SettlementsPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -148,11 +150,16 @@ export default function SettlementsPage() {
   if (isLoading) return <LoadingSpinner label="Loading settlements..." />;
 
   return (
-    <div className="space-y-5">
-      <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
+    <div className="space-y-4">
+      <div className="sticky top-0 z-40 bg-background/90 backdrop-blur pb-3 pt-2">
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-xl font-semibold tracking-tight">Pay Drivers</h1>
-          <button type="button" onClick={() => setShowHelp(!showHelp)} className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+          <button
+            type="button"
+            onClick={() => setShowHelp(!showHelp)}
+            className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            aria-label="Help"
+          >
             <Info className="h-4 w-4" />
           </button>
         </div>
@@ -161,7 +168,7 @@ export default function SettlementsPage() {
       </div>
 
       {showHelp && (
-        <div className="rounded-lg border bg-card p-4 space-y-2.5 text-xs text-muted-foreground">
+        <div className="rounded-xl border bg-card p-4 space-y-2.5 text-xs text-muted-foreground">
           <p className="font-medium text-foreground text-sm flex items-center gap-1.5">
             <Info className="h-4 w-4 text-primary" /> How payments work
           </p>
@@ -182,48 +189,84 @@ export default function SettlementsPage() {
           const isSettled = Math.abs(b.balance) < 1;
           const driverSettlements = settlements.filter((s: { driverId: string }) => s.driverId === d.id);
           const modeLabel = b.mode === "profit_share_50" ? "50% profit sharing" : "30% commission";
+          const statusLabel = isSettled ? "All settled" : owesYou ? "Owes you" : "You owe driver";
 
           return (
-            <div key={d.id} className={`rounded-lg border bg-card overflow-hidden transition-shadow ${isExpanded ? "shadow-sm" : ""} ${
-              owesYou ? "border-l-[3px] border-l-destructive" : isSettled ? "border-l-[3px] border-l-success" : "border-l-[3px] border-l-border"
-            }`}>
+            <div
+              key={d.id}
+              className={cn(
+                "rounded-xl border bg-card overflow-hidden transition-shadow",
+                isExpanded ? "shadow-sm" : "",
+                owesYou ? "border-l-4 border-l-destructive" : isSettled ? "border-l-4 border-l-success" : "border-l-4 border-l-border",
+              )}
+            >
               <button
                 type="button"
                 onClick={() => setExpandedDriver(isExpanded ? null : d.id)}
                 className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-secondary/30 transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                    isSettled ? "bg-success/10 text-success" : owesYou ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
-                  }`}>{d.name.charAt(0)}</div>
+                  <div
+                    className={cn(
+                      "h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold",
+                      isSettled ? "bg-success/10 text-success" : owesYou ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {d.name.charAt(0)}
+                  </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{d.name}</p>
+                    <p className="text-sm font-semibold truncate">{d.name}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {isSettled ? "All settled" : owesYou ? `Owes you ${formatCurrency(b.balance)}` : `You owe ${formatCurrency(Math.abs(b.balance))}`}
+                      {statusLabel}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <p className={`text-sm font-semibold tabular-nums ${owesYou ? "text-destructive" : isSettled ? "text-success" : "text-foreground"}`}>
-                    {isSettled ? "₹0" : formatCurrency(Math.abs(b.balance))}
-                  </p>
+                  <div className="flex flex-col items-end">
+                    <p
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        owesYou ? "text-destructive" : isSettled ? "text-success" : "text-foreground",
+                      )}
+                    >
+                      {isSettled ? "₹0" : formatCurrency(Math.abs(b.balance))}
+                    </p>
+                    <div className="mt-1">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "border",
+                          isSettled
+                            ? "bg-success/10 text-success border-success/20"
+                            : owesYou
+                              ? "bg-destructive/10 text-destructive border-destructive/20"
+                              : "bg-secondary text-foreground border-border",
+                        )}
+                      >
+                        {modeLabel}
+                      </Badge>
+                    </div>
+                  </div>
                   {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="border-t px-3 py-3 space-y-3 bg-secondary/10">
-                  <p className="text-[10px] text-muted-foreground">{modeLabel}</p>
-                  <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settlement</p>
+                <div className="border-t bg-secondary/10 px-3 py-3 space-y-3">
+                  <div className="rounded-xl border bg-card p-3 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Calculation</p>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5">{modeLabel}</Badge>
+                    </div>
                     <Row label="Net earning" value={formatCurrency(b.netEarning)} />
                     <Row label={b.mode === "profit_share_50" ? "Driver share (50%)" : "Driver commission (30%)"} value={formatCurrency(b.driverShare)} negative />
                     <div className="border-t pt-1.5 flex justify-between font-semibold text-foreground">
-                      <span>Final settlement</span><span className="tabular-nums">{formatCurrency(b.finalSettlement)}</span>
+                      <span>Final settlement</span>
+                      <span className="tabular-nums">{formatCurrency(b.finalSettlement)}</span>
                     </div>
                   </div>
 
-                  <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
+                  <div className="rounded-xl border bg-card p-3 space-y-1.5 text-xs">
                     <Row label="Cash collected" value={formatCurrency(b.cashCollected)} />
                     <Row label="Vendor + other earnings" value={formatCurrency(b.vendorAmount + b.otherEarnings)} />
                     {b.fuelCost > 0 && <Row label="Fuel" value={formatCurrency(b.fuelCost)} negative />}
@@ -231,7 +274,9 @@ export default function SettlementsPage() {
                     {b.alreadySettled > 0 && <Row label="Payments recorded" value={formatCurrency(b.alreadySettled)} positive />}
                     <div className="border-t pt-1.5 flex justify-between font-semibold">
                       <span>{owesYou ? "Driver owes you" : isSettled ? "Settled" : "You owe driver"}</span>
-                      <span className={`tabular-nums ${owesYou ? "text-destructive" : "text-success"}`}>{formatCurrency(Math.abs(b.balance))}</span>
+                      <span className={cn("tabular-nums", owesYou ? "text-destructive" : "text-success")}>
+                        {formatCurrency(Math.abs(b.balance))}
+                      </span>
                     </div>
                   </div>
 

@@ -15,7 +15,7 @@ export function getWeekEnd(weekStart: string): string {
 export function getWeekLabel(weekStart: string): string {
   const start = parseISO(weekStart);
   const end = endOfWeek(start, { weekStartsOn: 1 });
-  return `${format(start, "d MMM")} – ${format(end, "d MMM")}`;
+  return `${format(start, "d MMM yyyy")} – ${format(end, "d MMM yyyy")}`;
 }
 
 export function getWeekSessions(count: number = 8): WeekSession[] {

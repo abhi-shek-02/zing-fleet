@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { useDrivers, useCars, useCashEntries, useVendorEntries, useFuelEntries, useOtherCosts, useOtherEarnings, useCreateCashEntry, useDeleteCashEntry, useCreateVendorEntry, useDeleteVendorEntry, useCreateFuelEntry, useDeleteFuelEntry, useCreateOtherCost, useDeleteOtherCost, useCreateOtherEarning, useDeleteOtherEarning } from "@/hooks/useApi";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
-import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
+import { LoadingSpinner, ErrorState, EmptyState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
@@ -130,24 +130,25 @@ export default function AccountingPage() {
 
   return (
     <div className="space-y-5">
-      <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
+      <div className="sticky top-0 z-40 bg-background/90 backdrop-blur pb-3 pt-2">
         <h1 className="text-xl font-semibold tracking-tight">Daily Entries</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Log cash, bookings, fuel, and costs</p>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 rounded-xl border bg-card px-3 py-3 space-y-2.5">
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
             <SelectContent>{drivers.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
           </Select>
           <WeekPicker value={week} onChange={setWeek} />
-          {car && <p className="text-[11px] text-muted-foreground">{car.number} · {car.model}</p>}
+          {car && <p className="text-[11px] text-muted-foreground truncate">{car.number} · {car.model}</p>}
         </div>
       </div>
 
       {!driverId ? (
-        <div className="rounded-lg border p-8 text-center">
-          <Banknote className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Select a driver to start</p>
-        </div>
+        <EmptyState
+          title="Select a driver to start"
+          subtitle="Pick a driver to log cash, vendor, fuel, and other entries for the week."
+          icon={<Banknote className="h-8 w-8 text-muted-foreground/40 mx-auto" />}
+        />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2.5">

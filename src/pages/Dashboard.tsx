@@ -12,7 +12,7 @@ import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinanci
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
-import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
+import { ChevronRight, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
 
 export default function DashboardPage() {
   const [week, setWeek] = useState(getWeekStart());
