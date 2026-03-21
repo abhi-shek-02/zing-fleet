@@ -157,6 +157,19 @@ export default function DashboardPage() {
         <StatCard label="Payments Done" value={formatCurrency(totals.totalSettled)} variant="success" icon={<TrendingUp className="h-3.5 w-3.5" />} />
       </div>
 
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Vendor + other earnings − driver share − fuel − other costs</p>
+          </div>
+          <TrendingUp className={`h-5 w-5 ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`} />
+        </div>
+        <p className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`}>
+          {formatCurrency(totals.netProfit)}
+        </p>
+      </div>
+
       <div>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold">Drivers</h2>
