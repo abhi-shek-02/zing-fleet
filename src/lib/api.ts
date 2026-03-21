@@ -18,7 +18,7 @@ function apiBase(): string {
   if (raw) return raw.replace(/\/$/, "");
   return DEFAULT_API_BASE;
 }
-
+ 
 const API_BASE = apiBase();
 
 if (import.meta.env.PROD && typeof window !== "undefined" && window.location.protocol === "https:" && API_BASE.startsWith("http:")) {
@@ -126,8 +126,7 @@ export const api = {
 
   // Drivers
   getDrivers: () => request<any[]>("/api/drivers"),
-  /** Effective commission % rows — use with commissionPercentForWeek() for each week. */
-  getCommissionHistory: () => request<any[]>("/api/drivers/commission-history"),
+  getSettlementModeHistory: () => request<any[]>("/api/drivers/settlement-mode-history"),
   getDriver: (id: string) => request<any>(`/api/drivers/${id}`),
   createDriver: (data: Record<string, unknown>) =>
     request<any>("/api/drivers", { method: "POST", body: body(data) }),

@@ -1,16 +1,21 @@
 import { useState, useRef } from "react";
-import { useDrivers, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllSettlements, useCreateSettlement, useCommissionHistory } from "@/hooks/useApi";
-import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
+import { useDrivers, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllSettlements, useCreateSettlement, useSettlementModeHistory } from "@/hooks/useApi";
+import {
+  computeSettlement,
+  settlementModeForWeek,
+  unpaidBalance,
+  type SettlementModeHistoryRow,
+} from "@/lib/settlement";
 import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinancialOnWeekChange";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
-import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
+import { LoadingSpinner } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
-import { Plus, CheckCircle, Info, CreditCard, ChevronDown, ChevronUp, Paperclip, Image as ImageIcon } from "lucide-react";
+import { Plus, CheckCircle, Info, CreditCard, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
 export default function SettlementsPage() {
@@ -29,20 +34,28 @@ export default function SettlementsPage() {
   const otherEarnQ = useAllOtherEarnings();
   const settlementsQ = useAllSettlements();
   const createSettlement = useCreateSettlement();
-  const commissionHQ = useCommissionHistory();
+  const modeHQ = useSettlementModeHistory();
 
-  const isLoading = driversQ.isLoading || cashQ.isLoading || vendorQ.isLoading || commissionHQ.isLoading;
+  const isLoading =
+    driversQ.isLoading ||
+    cashQ.isLoading ||
+    vendorQ.isLoading ||
+    fuelQ.isLoading ||
+    otherQ.isLoading ||
+    otherEarnQ.isLoading ||
+    settlementsQ.isLoading ||
+    modeHQ.isLoading;
 
-  const drivers = (driversQ.data ?? []).filter((d: any) => d.status === "active");
+  const drivers = (driversQ.data ?? []).filter((d: { status: string }) => d.status === "active");
   const allCash = cashQ.data ?? [];
   const allVendor = vendorQ.data ?? [];
   const allFuel = fuelQ.data ?? [];
   const allOther = otherQ.data ?? [];
   const allOtherEarn = otherEarnQ.data ?? [];
   const allSettlements = settlementsQ.data ?? [];
-  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
+  const modeRows = (modeHQ.data ?? []) as SettlementModeHistoryRow[];
 
-  const settlements = allSettlements.filter((s: any) => s.weekStart === week);
+  const settlements = allSettlements.filter((s: { weekStart: string }) => s.weekStart === week);
 
   const [sDriver, setSDriver] = useState("");
   const [sAmount, setSAmount] = useState("");
@@ -51,23 +64,53 @@ export default function SettlementsPage() {
   const [sProofName, setSProofName] = useState<string | undefined>();
 
   const getDriverBreakdown = (driverId: string) => {
-    const driver = drivers.find((d: any) => d.id === driverId);
-    if (!driver) return { cashCollected: 0, vendorAmount: 0, otherEarnings: 0, fuelCost: 0, otherCost: 0, commission: 0, yourShare: 0, alreadySettled: 0, balance: 0 };
+    const driver = drivers.find((d: { id: string }) => d.id === driverId);
+    if (!driver) {
+      return {
+        cashCollected: 0,
+        vendorAmount: 0,
+        otherEarnings: 0,
+        fuelCost: 0,
+        otherCost: 0,
+        netEarning: 0,
+        driverShare: 0,
+        finalSettlement: 0,
+        alreadySettled: 0,
+        balance: 0,
+        mode: "commission_30" as const,
+      };
+    }
 
-    const cashCollected = allCash.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const vendorAmount = allVendor.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const otherEarnings = allOtherEarn.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const fuelCost = allFuel.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.cost), 0);
-    const otherCost = allOther.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
-    const alreadySettled = allSettlements.filter((e: any) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
+    const cashCollected = allCash.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { amount: number | string }) => s + Number(e.amount), 0);
+    const vendorAmount = allVendor.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { amount: number | string }) => s + Number(e.amount), 0);
+    const otherEarnings = allOtherEarn.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { amount: number | string }) => s + Number(e.amount), 0);
+    const fuelCost = allFuel.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { cost: number | string }) => s + Number(e.cost), 0);
+    const otherCost = allOther.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { amount: number | string }) => s + Number(e.amount), 0);
+    const alreadySettled = allSettlements.filter((e: { driverId: string; weekStart: string }) => e.driverId === driverId && e.weekStart === week).reduce((s: number, e: { amount: number | string }) => s + Number(e.amount), 0);
 
-    const totalEarnings = vendorAmount + otherEarnings;
-    const pct = commissionPercentForWeek(driverId, week, commissionRows);
-    const commission = totalEarnings * (pct / 100);
-    const yourShare = totalEarnings - commission - fuelCost - otherCost;
-    const balance = cashCollected - yourShare - alreadySettled;
+    const mode = settlementModeForWeek(driverId, week, modeRows);
+    const calc = computeSettlement(mode, {
+      cash: cashCollected,
+      vendor: vendorAmount,
+      fuel: fuelCost,
+      otherCost,
+      otherEarning: otherEarnings,
+    });
+    const balance = unpaidBalance(calc.finalSettlement, alreadySettled);
 
-    return { cashCollected, vendorAmount, otherEarnings, fuelCost, otherCost, commission, yourShare, alreadySettled, balance };
+    return {
+      cashCollected,
+      vendorAmount,
+      otherEarnings,
+      fuelCost,
+      otherCost,
+      netEarning: calc.netEarning,
+      driverShare: calc.driverCut,
+      finalSettlement: calc.finalSettlement,
+      alreadySettled,
+      balance,
+      mode,
+    };
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +152,7 @@ export default function SettlementsPage() {
       <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-xl font-semibold tracking-tight">Pay Drivers</h1>
-          <button onClick={() => setShowHelp(!showHelp)} className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+          <button type="button" onClick={() => setShowHelp(!showHelp)} className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <Info className="h-4 w-4" />
           </button>
         </div>
@@ -123,29 +166,29 @@ export default function SettlementsPage() {
             <Info className="h-4 w-4 text-primary" /> How payments work
           </p>
           <div className="space-y-1.5 leading-relaxed">
-            <p>1. Driver collects <span className="font-medium text-foreground">cash from passengers</span> during the week</p>
-            <p>2. From total earnings, driver keeps their <span className="font-medium text-foreground">commission</span></p>
-            <p>3. Fuel and other costs are deducted from earnings</p>
-            <p>4. <span className="font-medium text-foreground">Remaining = your share</span> (what you keep)</p>
-            <p>5. If driver collected more cash than your share, <span className="text-destructive font-medium">they owe you the difference</span></p>
+            <p><span className="font-medium text-foreground">30% commission</span> — Net earning uses vendor + other earnings minus other costs; driver keeps 30% of that net; fuel is separate in the settlement.</p>
+            <p><span className="font-medium text-foreground">50% profit sharing</span> — Net is all earnings minus all costs; driver keeps half; settlement uses cash vs vendor plus that share.</p>
+            <p>Record payments to reduce the remaining balance.</p>
           </div>
-          <button onClick={() => setShowHelp(false)} className="text-xs text-primary font-medium">Dismiss</button>
+          <button type="button" onClick={() => setShowHelp(false)} className="text-xs text-primary font-medium">Dismiss</button>
         </div>
       )}
 
       <div className="space-y-2">
-        {drivers.map((d: any) => {
+        {drivers.map((d: { id: string; name: string }) => {
           const b = getDriverBreakdown(d.id);
           const isExpanded = expandedDriver === d.id;
           const owesYou = b.balance > 0;
           const isSettled = Math.abs(b.balance) < 1;
-          const driverSettlements = settlements.filter((s: any) => s.driverId === d.id);
+          const driverSettlements = settlements.filter((s: { driverId: string }) => s.driverId === d.id);
+          const modeLabel = b.mode === "profit_share_50" ? "50% profit sharing" : "30% commission";
 
           return (
             <div key={d.id} className={`rounded-lg border bg-card overflow-hidden transition-shadow ${isExpanded ? "shadow-sm" : ""} ${
               owesYou ? "border-l-[3px] border-l-destructive" : isSettled ? "border-l-[3px] border-l-success" : "border-l-[3px] border-l-border"
             }`}>
               <button
+                type="button"
                 onClick={() => setExpandedDriver(isExpanded ? null : d.id)}
                 className="flex w-full items-center justify-between px-3 py-3 text-left hover:bg-secondary/30 transition-colors"
               >
@@ -170,22 +213,22 @@ export default function SettlementsPage() {
 
               {isExpanded && (
                 <div className="border-t px-3 py-3 space-y-3 bg-secondary/10">
+                  <p className="text-[10px] text-muted-foreground">{modeLabel}</p>
                   <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Calculation</p>
-                    <Row label="Vendor Earnings" value={formatCurrency(b.vendorAmount)} />
-                    {b.otherEarnings > 0 && <Row label="+ Other Earnings" value={formatCurrency(b.otherEarnings)} />}
-                    <Row label={`- Commission (${commissionPercentForWeek(d.id, week, commissionRows)}%)`} value={formatCurrency(b.commission)} negative />
-                    <Row label="- Fuel Cost" value={formatCurrency(b.fuelCost)} negative />
-                    {b.otherCost > 0 && <Row label="- Other Costs" value={formatCurrency(b.otherCost)} negative />}
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Settlement</p>
+                    <Row label="Net earning" value={formatCurrency(b.netEarning)} />
+                    <Row label={b.mode === "profit_share_50" ? "Driver share (50%)" : "Driver commission (30%)"} value={formatCurrency(b.driverShare)} negative />
                     <div className="border-t pt-1.5 flex justify-between font-semibold text-foreground">
-                      <span>Your Share</span><span className="tabular-nums">{formatCurrency(b.yourShare)}</span>
+                      <span>Final settlement</span><span className="tabular-nums">{formatCurrency(b.finalSettlement)}</span>
                     </div>
                   </div>
 
                   <div className="rounded-lg border bg-card p-3 space-y-1.5 text-xs">
-                    <Row label="Cash Collected" value={formatCurrency(b.cashCollected)} />
-                    <Row label="- Your Share" value={formatCurrency(b.yourShare)} />
-                    {b.alreadySettled > 0 && <Row label="- Already Paid" value={formatCurrency(b.alreadySettled)} positive />}
+                    <Row label="Cash collected" value={formatCurrency(b.cashCollected)} />
+                    <Row label="Vendor + other earnings" value={formatCurrency(b.vendorAmount + b.otherEarnings)} />
+                    {b.fuelCost > 0 && <Row label="Fuel" value={formatCurrency(b.fuelCost)} negative />}
+                    {b.otherCost > 0 && <Row label="Other costs" value={formatCurrency(b.otherCost)} negative />}
+                    {b.alreadySettled > 0 && <Row label="Payments recorded" value={formatCurrency(b.alreadySettled)} positive />}
                     <div className="border-t pt-1.5 flex justify-between font-semibold">
                       <span>{owesYou ? "Driver owes you" : isSettled ? "Settled" : "You owe driver"}</span>
                       <span className={`tabular-nums ${owesYou ? "text-destructive" : "text-success"}`}>{formatCurrency(Math.abs(b.balance))}</span>
@@ -195,7 +238,7 @@ export default function SettlementsPage() {
                   {driverSettlements.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Payment History</p>
-                      {driverSettlements.map((s: any) => (
+                      {driverSettlements.map((s: { id: string; date: string; paymentMode?: string; notes?: string; amount: number | string }) => (
                         <div key={s.id} className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="h-3.5 w-3.5 text-success shrink-0" />
@@ -239,7 +282,7 @@ export default function SettlementsPage() {
             <div><Label className="text-xs">Driver</Label>
               <Select value={sDriver} onValueChange={(v) => { setSDriver(v); setSAmount(""); }}>
                 <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
-                <SelectContent>{drivers.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{drivers.map((d: { id: string; name: string }) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {selectedDriverBreakdown && (

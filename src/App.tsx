@@ -50,7 +50,6 @@ const App = () => (
           <Route path="/drivers/:id" element={<ProtectedRoute><AppLayout><DriverDetailPage /></AppLayout></ProtectedRoute>} />
           <Route path="/accounting" element={<ProtectedRoute><AppLayout><AccountingPage /></AppLayout></ProtectedRoute>} />
           <Route path="/settlements" element={<ProtectedRoute><AppLayout><SettlementsPage /></AppLayout></ProtectedRoute>} />
-          <Route path="/settlementsNew" element={<ProtectedRoute><AppLayout><SettlementsPage /></AppLayout></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><AppLayout><AnalyticsPage /></AppLayout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

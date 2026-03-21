@@ -3,7 +3,7 @@ export interface Driver {
   name: string;
   phone: string;
   carId: string;
-  commissionPercent: number;
+  settlementMode: "commission_30" | "profit_share_50";
   status: "active" | "inactive";
 }
 

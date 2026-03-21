@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { useDrivers, useCars, useAllVendor, useAllFuel, useAllOtherCosts, useSettings, useUpdateSettings, useCommissionHistory } from "@/hooks/useApi";
-import { commissionPercentForWeek, type CommissionHistoryRow } from "@/lib/commission";
+import { useDrivers, useCars, useAllVendor, useAllFuel, useAllOtherCosts, useAllOtherEarnings, useAllCash, useSettings, useUpdateSettings, useSettlementModeHistory } from "@/hooks/useApi";
+import { computeSettlement, settlementModeForWeek, type SettlementModeHistoryRow } from "@/lib/settlement";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { LoadingSpinner } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
@@ -19,9 +19,11 @@ export default function ReportsPage() {
   const otherQ = useAllOtherCosts();
   const settingsQ = useSettings();
   const updateSettings = useUpdateSettings();
-  const commissionHQ = useCommissionHistory();
+  const modeHQ = useSettlementModeHistory();
+  const otherEarnQ = useAllOtherEarnings();
+  const cashQ = useAllCash();
 
-  const isLoading = driversQ.isLoading || carsQ.isLoading || vendorQ.isLoading || commissionHQ.isLoading;
+  const isLoading = driversQ.isLoading || carsQ.isLoading || vendorQ.isLoading || modeHQ.isLoading || otherEarnQ.isLoading || cashQ.isLoading;
 
   const drivers = driversQ.data ?? [];
   const cars = carsQ.data ?? [];
@@ -29,7 +31,9 @@ export default function ReportsPage() {
   const allFuel = fuelQ.data ?? [];
   const allOther = otherQ.data ?? [];
   const settings = settingsQ.data ?? { fuelThreshold: 10 };
-  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
+  const allOtherEarn = otherEarnQ.data ?? [];
+  const allCash = cashQ.data ?? [];
+  const modeRows = (modeHQ.data ?? []) as SettlementModeHistoryRow[];
   const [threshold, setThreshold] = useState(Number(settings.fuelThreshold));
 
   const vendor = allVendor.filter((e: any) => e.weekStart === week);
@@ -42,12 +46,21 @@ export default function ReportsPage() {
       const carVendor = vendor.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
       const carFuel = fuel.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.cost), 0);
       const carOther = other.filter((e: any) => e.carId === car.id).reduce((s: number, e: any) => s + Number(e.amount), 0);
-      const pct = driver?.id ? commissionPercentForWeek(driver.id, week, commissionRows) : 30;
-      const commission = carVendor * (pct / 100);
-      const profit = carVendor - commission - carFuel - carOther;
+      const carOtherEarn = allOtherEarn.filter((e: any) => e.carId === car.id && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const carCash = allCash.filter((e: any) => e.carId === car.id && e.weekStart === week).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const mode = driver?.id ? settlementModeForWeek(driver.id, week, modeRows) : "commission_30";
+      const calc = computeSettlement(mode, {
+        cash: carCash,
+        vendor: carVendor,
+        fuel: carFuel,
+        otherCost: carOther,
+        otherEarning: carOtherEarn,
+      });
+      const commission = calc.driverCut;
+      const profit = carVendor + carOtherEarn - commission - carFuel - carOther;
       return { car, driver, carVendor, carFuel, carOther, commission, profit };
     });
-  }, [cars, drivers, vendor, fuel, other, week, commissionRows]);
+  }, [cars, drivers, vendor, fuel, other, week, modeRows, allOtherEarn, allCash]);
 
   const fuelEfficiency = useMemo(() => {
     const sorted = [...fuel].sort((a: any, b: any) => Number(a.odometer) - Number(b.odometer));

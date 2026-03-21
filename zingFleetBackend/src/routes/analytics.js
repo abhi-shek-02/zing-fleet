@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { supabase } = require("../lib/supabase");
 const { AppError } = require("../middleware/errorHandler");
+const { computeSettlement, unpaidBalance } = require("../lib/settlement");
 
 // GET /api/analytics/fleet-summary
 router.get("/fleet-summary", async (_req, res, next) => {
@@ -65,14 +66,14 @@ router.get("/driver/:id", async (req, res, next) => {
     const filters = { driver_id: id, week_start };
     const eq = (q) => q.eq("driver_id", id).eq("week_start", week_start);
 
-    const [cash, vendor, fuel, costs, earnings, settlements, commRes] = await Promise.all([
+    const [cash, vendor, fuel, costs, earnings, settlements, modeRes] = await Promise.all([
       eq(supabase.from("cash_entries").select("amount")),
       eq(supabase.from("vendor_entries").select("amount")),
       eq(supabase.from("fuel_entries").select("cost")),
       eq(supabase.from("other_cost_entries").select("amount")),
       eq(supabase.from("other_earning_entries").select("amount")),
       eq(supabase.from("settlements").select("amount")),
-      supabase.rpc("get_driver_commission_percent", { p_driver_id: id, p_week_start: week_start }),
+      supabase.rpc("get_driver_settlement_mode", { p_driver_id: id, p_week_start: week_start }),
     ]);
 
     const sum = (arr, key) => (arr.data || []).reduce((s, r) => s + Number(r[key] || 0), 0);
@@ -82,12 +83,16 @@ router.get("/driver/:id", async (req, res, next) => {
     const totalFuel = sum(fuel, "cost");
     const totalOtherCosts = sum(costs, "amount");
     const totalSettled = sum(settlements, "amount");
-    if (commRes.error) throw new AppError(commRes.error.message, 500);
-    const commPct = commRes.data != null ? Number(commRes.data) : 30;
-    const totalEarnings = totalVendor + totalOtherEarn;
-    const commission = totalEarnings * (commPct / 100);
-    const netEarnings = totalEarnings - commission - totalFuel - totalOtherCosts;
-    const balance = totalCash - netEarnings - totalSettled;
+    if (modeRes.error) throw new AppError(modeRes.error.message, 500);
+    const mode = modeRes.data || "commission_30";
+    const calc = computeSettlement(mode, {
+      cash: totalCash,
+      vendor: totalVendor,
+      fuel: totalFuel,
+      otherCost: totalOtherCosts,
+      otherEarning: totalOtherEarn,
+    });
+    const balance = unpaidBalance(calc.finalSettlement, totalSettled);
 
     res.json({
       success: true,
@@ -97,10 +102,12 @@ router.get("/driver/:id", async (req, res, next) => {
         total_other_earnings: totalOtherEarn,
         total_fuel: totalFuel,
         total_other_costs: totalOtherCosts,
-        commission,
+        commission: calc.driverCut,
         total_settled: totalSettled,
-        net_earnings: netEarnings,
+        net_earnings: calc.netEarning,
         balance,
+        final_settlement: calc.finalSettlement,
+        settlement_mode: mode,
       },
     });
   } catch (err) { next(err); }

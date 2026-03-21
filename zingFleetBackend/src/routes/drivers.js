@@ -5,19 +5,24 @@ const { validate } = require("../middleware/validate");
 const { AppError } = require("../middleware/errorHandler");
 const { getMondayDateString } = require("../lib/week");
 
+const settlementModeEnum = z.enum(["commission_30", "profit_share_50"]);
+
 const driverSchema = z.object({
   name: z.string().min(1).max(100),
   phone: z.string().min(10).max(15),
   car_id: z.string().uuid().nullable().optional(),
-  commission_percent: z.number().min(0).max(100).default(30),
+  settlement_mode: settlementModeEnum.default("commission_30"),
   status: z.enum(["active", "inactive"]).default("active"),
 });
 
 const driverUpdateSchema = driverSchema.partial().extend({
-  commission_effective_week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  settlement_effective_week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-// GET /api/drivers
+function legacyCommissionPercent(mode) {
+  return mode === "profit_share_50" ? 50 : 30;
+}
+
 router.get("/", async (_req, res, next) => {
   try {
     const { data, error } = await supabase.from("drivers").select("*, cars(number, model)").order("name");
@@ -26,19 +31,17 @@ router.get("/", async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/drivers/commission-history — list all rows (small); used for week-accurate commission on the client
-router.get("/commission-history", async (_req, res, next) => {
+router.get("/settlement-mode-history", async (_req, res, next) => {
   try {
     const { data, error } = await supabase
-      .from("driver_commission_history")
-      .select("driver_id, effective_week_start, commission_percent")
+      .from("driver_settlement_mode_history")
+      .select("driver_id, effective_week_start, settlement_mode")
       .order("effective_week_start", { ascending: true });
     if (error) throw new AppError(error.message, 500);
     res.json({ success: true, data: data || [] });
   } catch (err) { next(err); }
 });
 
-// GET /api/drivers/:id
 router.get("/:id", async (req, res, next) => {
   try {
     const { data, error } = await supabase.from("drivers").select("*, cars(*)").eq("id", req.params.id).single();
@@ -47,47 +50,54 @@ router.get("/:id", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/drivers
 router.post("/", validate(driverSchema), async (req, res, next) => {
   try {
-    const { data, error } = await supabase.from("drivers").insert(req.body).select().single();
+    const row = {
+      ...req.body,
+      commission_percent: legacyCommissionPercent(req.body.settlement_mode),
+    };
+    const { data, error } = await supabase.from("drivers").insert(row).select().single();
     if (error) throw new AppError(error.message, 500);
     res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 });
 
-// PUT /api/drivers/:id
 router.put("/:id", validate(driverUpdateSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { commission_effective_week_start, ...rest } = req.body;
+    const { settlement_effective_week_start, ...rest } = req.body;
 
-    const { data: existing, error: fetchErr } = await supabase.from("drivers").select("commission_percent").eq("id", id).single();
+    const { data: existing, error: fetchErr } = await supabase
+      .from("drivers")
+      .select("settlement_mode")
+      .eq("id", id)
+      .single();
     if (fetchErr) throw new AppError(fetchErr.message, 404);
 
-    if (
-      rest.commission_percent !== undefined &&
-      Number(rest.commission_percent) !== Number(existing.commission_percent)
-    ) {
-      const weekMon = commission_effective_week_start || getMondayDateString();
-      const { error: histErr } = await supabase.from("driver_commission_history").upsert(
+    if (rest.settlement_mode !== undefined && rest.settlement_mode !== existing.settlement_mode) {
+      const weekMon = settlement_effective_week_start || getMondayDateString();
+      const { error: histErr } = await supabase.from("driver_settlement_mode_history").upsert(
         {
           driver_id: id,
           effective_week_start: weekMon,
-          commission_percent: rest.commission_percent,
+          settlement_mode: rest.settlement_mode,
         },
         { onConflict: "driver_id,effective_week_start" }
       );
       if (histErr) throw new AppError(histErr.message, 500);
     }
 
-    const { data, error } = await supabase.from("drivers").update(rest).eq("id", id).select().single();
+    const patch = { ...rest };
+    if (rest.settlement_mode !== undefined) {
+      patch.commission_percent = legacyCommissionPercent(rest.settlement_mode);
+    }
+
+    const { data, error } = await supabase.from("drivers").update(patch).eq("id", id).select().single();
     if (error) throw new AppError(error.message, 500);
     res.json({ success: true, data });
   } catch (err) { next(err); }
 });
 
-// DELETE /api/drivers/:id
 router.delete("/:id", async (req, res, next) => {
   try {
     const { error } = await supabase.from("drivers").delete().eq("id", req.params.id);

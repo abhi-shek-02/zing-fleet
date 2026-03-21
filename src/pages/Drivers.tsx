@@ -46,7 +46,7 @@ export default function DriversPage() {
   const [dName, setDName] = useState("");
   const [dPhone, setDPhone] = useState("");
   const [dCar, setDCar] = useState("");
-  const [dCommission, setDCommission] = useState("30");
+  const [dSettlementMode, setDSettlementMode] = useState<"commission_30" | "profit_share_50">("commission_30");
 
   // Car form
   const [cNumber, setCNumber] = useState("");
@@ -67,12 +67,15 @@ export default function DriversPage() {
   const [cdNotes, setCdNotes] = useState("");
   const [cdFileName, setCdFileName] = useState<string | undefined>();
 
-  const resetDriverForm = () => { setDName(""); setDPhone(""); setDCar(""); setDCommission("30"); };
+  const resetDriverForm = () => { setDName(""); setDPhone(""); setDCar(""); setDSettlementMode("commission_30"); };
   const resetCarForm = () => { setCNumber(""); setCModel(""); setCFuelType("petrol"); setCMileage("12"); };
 
   const openEditDriver = (d: any) => {
     setEditDriverId(d.id);
-    setDName(d.name); setDPhone(d.phone); setDCar(d.carId || ""); setDCommission(String(d.commissionPercent));
+    const mode =
+      d.settlementMode ??
+      (Number(d.commissionPercent) >= 45 ? "profit_share_50" : "commission_30");
+    setDName(d.name); setDPhone(d.phone); setDCar(d.carId || ""); setDSettlementMode(mode);
     setShowDriver(true);
   };
 
@@ -84,9 +87,9 @@ export default function DriversPage() {
 
   const saveDriver = async () => {
     if (!dName || !dCar) return;
-    const data: Record<string, unknown> = { name: dName, phone: dPhone, carId: dCar, commissionPercent: Number(dCommission) || 30, status: "active" };
+    const data: Record<string, unknown> = { name: dName, phone: dPhone, carId: dCar, settlementMode: dSettlementMode, status: "active" };
     if (editDriverId) {
-      data.commissionEffectiveWeekStart = getWeekStart();
+      data.settlementEffectiveWeekStart = getWeekStart();
       await updateDriver.mutateAsync({ id: editDriverId, ...data });
     } else {
       await createDriver.mutateAsync(data);
@@ -286,7 +289,10 @@ export default function DriversPage() {
                   <div>
                     <p className="text-sm font-medium">{driver.name}</p>
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" /> {driver.phone} · {car?.number ?? "—"} · {driver.commissionPercent}%
+                      <Phone className="h-3 w-3" /> {driver.phone} · {car?.number ?? "—"} ·{" "}
+                      {(driver.settlementMode ?? (Number(driver.commissionPercent) >= 45 ? "profit_share_50" : "commission_30")) === "profit_share_50"
+                        ? "50% share"
+                        : "30% comm"}
                     </p>
                   </div>
                 </button>
@@ -313,7 +319,15 @@ export default function DriversPage() {
                 <SelectContent>{cars.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.number} — {c.model}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label className="text-xs">Commission %</Label><Input type="number" value={dCommission} onChange={e => setDCommission(e.target.value)} /></div>
+            <div><Label className="text-xs">Settlement model</Label>
+              <Select value={dSettlementMode} onValueChange={(v) => setDSettlementMode(v as "commission_30" | "profit_share_50")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="commission_30">30% commission</SelectItem>
+                  <SelectItem value="profit_share_50">50% profit sharing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DrawerFooter>
             <Button onClick={saveDriver} disabled={!dName || !dCar || createDriver.isPending || updateDriver.isPending}>

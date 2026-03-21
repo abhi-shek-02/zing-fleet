@@ -17,8 +17,8 @@ export function useDrivers() {
   return useQuery({ queryKey: ["drivers"], queryFn: api.getDrivers });
 }
 
-export function useCommissionHistory() {
-  return useQuery({ queryKey: ["commissionHistory"], queryFn: api.getCommissionHistory });
+export function useSettlementModeHistory() {
+  return useQuery({ queryKey: ["settlementModeHistory"], queryFn: api.getSettlementModeHistory });
 }
 
 export function useDriver(id: string) {
@@ -134,7 +134,7 @@ export function useCreateDriver() {
     mutationFn: (data: Record<string, unknown>) => api.createDriver(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["drivers"] });
-      qc.invalidateQueries({ queryKey: ["commissionHistory"] });
+      qc.invalidateQueries({ queryKey: ["settlementModeHistory"] });
     },
     onError,
   });
@@ -147,7 +147,7 @@ export function useUpdateDriver() {
     mutationFn: ({ id, ...data }: Record<string, unknown> & { id: string }) => api.updateDriver(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["drivers"] });
-      qc.invalidateQueries({ queryKey: ["commissionHistory"] });
+      qc.invalidateQueries({ queryKey: ["settlementModeHistory"] });
     },
     onError,
   });

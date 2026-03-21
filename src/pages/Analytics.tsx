@@ -1,6 +1,10 @@
 import { useMemo } from "react";
-import { useCars, useDrivers, useAllVendor, useAllFuel, useAllOtherCosts, useAllCarCosts, useAllOtherEarnings, useSettings, useCommissionHistory } from "@/hooks/useApi";
-import { totalCommissionForCarAcrossWeeks, totalCommissionForDriverAcrossWeeks, type CommissionHistoryRow } from "@/lib/commission";
+import { useCars, useDrivers, useAllVendor, useAllFuel, useAllOtherCosts, useAllCarCosts, useAllOtherEarnings, useSettings, useSettlementModeHistory, useAllCash } from "@/hooks/useApi";
+import {
+  totalDriverCutForCarAcrossWeeks,
+  totalDriverCutAcrossWeeks,
+  type SettlementModeHistoryRow,
+} from "@/lib/settlement";
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import { formatCurrency } from "@/lib/utils-date";
 import StatCard from "@/components/StatCard";
@@ -20,9 +24,10 @@ export default function AnalyticsPage() {
   const carCostsQ = useAllCarCosts();
   const otherEarnQ = useAllOtherEarnings();
   const settingsQ = useSettings();
-  const commissionHQ = useCommissionHistory();
+  const modeHQ = useSettlementModeHistory();
+  const cashQ = useAllCash();
 
-  const isLoading = carsQ.isLoading || driversQ.isLoading || vendorQ.isLoading || fuelQ.isLoading || commissionHQ.isLoading;
+  const isLoading = carsQ.isLoading || driversQ.isLoading || vendorQ.isLoading || fuelQ.isLoading || modeHQ.isLoading || cashQ.isLoading;
 
   const cars = carsQ.data ?? [];
   const drivers = driversQ.data ?? [];
@@ -32,7 +37,8 @@ export default function AnalyticsPage() {
   const allCarCosts = carCostsQ.data ?? [];
   const allOtherEarnings = otherEarnQ.data ?? [];
   const settings = settingsQ.data ?? { fuelThreshold: 10 };
-  const commissionRows = (commissionHQ.data ?? []) as CommissionHistoryRow[];
+  const allCash = cashQ.data ?? [];
+  const modeRows = (modeHQ.data ?? []) as SettlementModeHistoryRow[];
 
   const mileagePerCar = useMemo(() => {
     return cars.map((car: any) => {
@@ -78,12 +84,12 @@ export default function AnalyticsPage() {
       const other = allOther.filter((o: any) => o.carId === car.id).reduce((s: number, o: any) => s + Number(o.amount), 0);
       const carCost = allCarCosts.filter((c: any) => c.carId === car.id).reduce((s: number, c: any) => s + Number(c.amount), 0);
       const totalEarnings = vendor + otherEarn;
-      const commission = totalCommissionForCarAcrossWeeks(car.id, driver?.id, commissionRows, allVendor, allOtherEarnings);
+      const commission = totalDriverCutForCarAcrossWeeks(car.id, driver?.id, modeRows, allCash, allVendor, allOtherEarnings, allFuel, allOther);
       const profit = totalEarnings - commission - fuel - other - carCost;
       const margin = totalEarnings > 0 ? (profit / totalEarnings) * 100 : 0;
       return { name: car.number, vendor, otherEarn, fuel, other, carCost, commission, profit, model: car.model, driverName: driver?.name || "Unassigned", margin: Number(margin.toFixed(1)) };
     });
-  }, [cars, drivers, allVendor, allFuel, allOther, allCarCosts, allOtherEarnings, commissionRows]);
+  }, [cars, drivers, allVendor, allFuel, allOther, allCarCosts, allOtherEarnings, modeRows, allCash]);
 
   const driverLeaderboard = useMemo(() => {
     return drivers.filter((d: any) => d.status === "active").map((d: any) => {
@@ -92,14 +98,14 @@ export default function AnalyticsPage() {
       const fuel = allFuel.filter((f: any) => f.driverId === d.id).reduce((s: number, f: any) => s + Number(f.cost), 0);
       const other = allOther.filter((o: any) => o.driverId === d.id).reduce((s: number, o: any) => s + Number(o.amount), 0);
       const totalEarnings = vendor + otherEarn;
-      const commission = totalCommissionForDriverAcrossWeeks(d.id, commissionRows, allVendor, allOtherEarnings);
+      const commission = totalDriverCutAcrossWeeks(d.id, modeRows, allCash, allVendor, allOtherEarnings, allFuel, allOther);
       const profit = totalEarnings - commission - fuel - other;
       const car = cars.find((c: any) => c.id === d.carId);
       const trips = allVendor.filter((v: any) => v.driverId === d.id).length;
       const revenuePerTrip = trips > 0 ? totalEarnings / trips : 0;
       return { name: d.name, car: car?.number || "—", vendor, profit, commission, fuel, trips, revenuePerTrip: Number(revenuePerTrip.toFixed(0)) };
     }).sort((a: any, b: any) => b.profit - a.profit);
-  }, [drivers, cars, allVendor, allFuel, allOther, allOtherEarnings, commissionRows]);
+  }, [drivers, cars, allVendor, allFuel, allOther, allOtherEarnings, modeRows, allCash]);
 
   const fleetStats = useMemo(() => {
     const totalVendor = allVendor.reduce((s: number, v: any) => s + Number(v.amount), 0);
