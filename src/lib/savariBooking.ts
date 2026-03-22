@@ -132,6 +132,36 @@ function resolveCityFields(row: Record<string, unknown>): {
   return { pickCity, dropCity, pickAddress, dropAddress };
 }
 
+/** e.g. "Kolkata &rarr; Taki" or "Kolkata → Taki" — city names for route header (not building names). */
+function parseItinerary(row: Record<string, unknown>): { from: string; to: string } | null {
+  const raw = str(
+    row,
+    "itinerary",
+    "route_itinerary",
+    "trip_itinerary",
+    "routeItinerary",
+    "tripItinerary",
+    "trip_route",
+  );
+  if (!raw) return null;
+  const normalized = raw
+    .replace(/&rarr;/gi, "→")
+    .replace(/&larr;/gi, "←")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  const segs = normalized
+    .split(/\s*→\s*|\s*->\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (segs.length >= 2) {
+    return {
+      from: cityShort(segs[0]!),
+      to: cityShort(segs[segs.length - 1]!),
+    };
+  }
+  return null;
+}
+
 export type ParsedBooking = {
   row: Record<string, unknown>;
   bookingId: string;
@@ -272,7 +302,12 @@ export function parseBooking(row: Record<string, unknown>): ParsedBooking {
   const tripSubType =
     tripSubRaw != null && tripSubRaw !== "" ? Number(tripSubRaw) : null;
 
-  const { pickCity, dropCity, pickAddress, dropAddress } = resolveCityFields(row);
+  let { pickCity, dropCity, pickAddress, dropAddress } = resolveCityFields(row);
+  const it = parseItinerary(row);
+  if (it) {
+    pickCity = it.from;
+    dropCity = it.to;
+  }
   const ps = cityShort(pickCity);
   const ds = cityShort(dropCity);
   const routeTitleShort =

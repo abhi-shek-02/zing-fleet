@@ -1,18 +1,22 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils-date";
 import {
+  formatExpiresLabel,
+  formatPickupDateTimeParts,
+  formatSavariDateTime,
+  googleMapsSearchUrl,
+} from "@/lib/savariDisplay";
+import {
   buildBookingGroups,
   computeGroupDebug,
-  filterByPill,
   filterRowsByFleetCar,
   listAvgRpKm,
   parseBooking,
   sortParsedBookings,
-  type ListFilterPill,
   type ParsedBooking,
   type SavariSortKey,
 } from "@/lib/savariBooking";
@@ -32,12 +36,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 const ALL = "__all__";
-
-const FILTER_PILLS: { id: ListFilterPill; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "prepaid", label: "Pre-paid only" },
-  { id: "urgent6h", label: "Urgent <6h" },
-];
 
 const SORT_OPTIONS: { id: SavariSortKey; label: string }[] = [
   { id: "urgency", label: "Urgency" },
@@ -81,7 +79,6 @@ export default function SavariBroadcastsPage() {
     [fleetRows],
   );
 
-  const [pill, setPill] = useState<ListFilterPill>("all");
   const [sortKey, setSortKey] = useState<SavariSortKey>("urgency");
   const [carChip, setCarChip] = useState(ALL);
   const [paymentFilter, setPaymentFilter] = useState(ALL);
@@ -102,28 +99,26 @@ export default function SavariBroadcastsPage() {
   }, [parsedAll]);
 
   const filtered = useMemo(() => {
-    let list = filterByPill(parsedAll, pill);
+    let list = parsedAll;
     list = list.filter((p) => matchesCarChip(p, carChip));
     if (paymentFilter !== ALL) list = list.filter((p) => p.paymentLabel === paymentFilter);
     if (tripTypeFilter !== ALL) list = list.filter((p) => p.tripTypeName === tripTypeFilter);
     return list;
-  }, [parsedAll, pill, carChip, paymentFilter, tripTypeFilter]);
+  }, [parsedAll, carChip, paymentFilter, tripTypeFilter]);
 
   const sorted = useMemo(() => sortParsedBookings(filtered, sortKey), [filtered, sortKey]);
 
   const stats = useMemo(() => {
     const totalEarn = filtered.reduce((s, p) => s + p.vendorCost, 0);
     const prepaidN = filtered.filter((p) => p.isPrepaid).length;
-    const urgentN = filtered.filter((p) => p.hoursLeft != null && p.hoursLeft < 6).length;
     const avg = listAvgRpKm(filtered);
-    return { totalEarn, prepaidN, urgentN, avg };
+    return { totalEarn, prepaidN, avg };
   }, [filtered]);
 
   const groups = useMemo(() => buildBookingGroups(parsedAll), [parsedAll]);
   const groupDebug = useMemo(() => computeGroupDebug(rawCount, parsedAll), [rawCount, parsedAll]);
 
-  const hasExtraFilters =
-    pill !== "all" || carChip !== ALL || paymentFilter !== ALL || tripTypeFilter !== ALL;
+  const hasExtraFilters = carChip !== ALL || paymentFilter !== ALL || tripTypeFilter !== ALL;
 
   const openDetail = (p: ParsedBooking) => {
     navigate(`/savari/booking/${encodeURIComponent(p.bookingId)}`, {
@@ -173,7 +168,7 @@ export default function SavariBroadcastsPage() {
 
       {!q.isLoading && !q.isError && rawItems.length > 0 && (
         <div className="mb-4 space-y-4">
-          <div className="grid grid-cols-2 gap-2 rounded-lg border bg-card px-3 py-2 text-xs sm:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs">
             <div>
               <p className="text-[10px] text-muted-foreground">Total earn</p>
               <p className="font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
@@ -182,17 +177,15 @@ export default function SavariBroadcastsPage() {
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground">Pre-paid</p>
-              <p className="font-medium tabular-nums">
+              <p className="font-medium tabular-nums text-sky-700 dark:text-sky-300">
                 {stats.prepaidN}/{filtered.length}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground">Urgent</p>
-              <p className="font-medium tabular-nums">{stats.urgentN}</p>
-            </div>
-            <div>
               <p className="text-[10px] text-muted-foreground">Avg ₹/km</p>
-              <p className="font-medium tabular-nums">{stats.avg.toFixed(1)}</p>
+              <p className="font-semibold tabular-nums text-amber-700 dark:text-amber-300">
+                {stats.avg.toFixed(1)}
+              </p>
             </div>
           </div>
 
@@ -214,29 +207,6 @@ export default function SavariBroadcastsPage() {
                   )}
                 >
                   {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Quick filters
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {FILTER_PILLS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setPill(f.id)}
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                    pill === f.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  {f.label}
                 </button>
               ))}
             </div>
@@ -287,7 +257,6 @@ export default function SavariBroadcastsPage() {
               size="sm"
               className="h-8 px-2 text-xs"
               onClick={() => {
-                setPill("all");
                 setCarChip(ALL);
                 setPaymentFilter(ALL);
                 setTripTypeFilter(ALL);
@@ -485,17 +454,10 @@ function BookingCard({
 
   const timerClass =
     p.timerTone === "red"
-      ? "text-red-500"
+      ? "text-red-600 dark:text-red-400"
       : p.timerTone === "amber"
-        ? "text-amber-500"
-        : "text-emerald-500";
-
-  const timerLabel =
-    p.hoursLeft == null
-      ? "—"
-      : p.hoursLeft < 1
-        ? `${Math.round(p.hoursLeft * 60)} min left`
-        : `${p.hoursLeft.toFixed(1)}h left`;
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-emerald-600 dark:text-emerald-400";
 
   const borderL =
     p.borderAccent === "red" ? "border-l-4 border-l-red-500" : "border-l-4 border-l-transparent";
@@ -503,6 +465,10 @@ function BookingCard({
   const scorePct = Math.min(100, Math.max(0, p.compositeScore));
 
   const addrLine = p.pickAddress || p.pickCity;
+  const mapsUrl = addrLine ? googleMapsSearchUrl(addrLine) : "";
+
+  const parts = formatPickupDateTimeParts(p.pickupTimeLabel);
+  const kmStr = p.packageKms > 0 ? `${Math.round(p.packageKms)} km` : "—";
 
   return (
     <Card className={cn("overflow-hidden shadow-sm", borderL)}>
@@ -515,24 +481,19 @@ function BookingCard({
           </div>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold leading-snug">{p.routeTitleShort}</p>
-              {addrLine ? (
-                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                  Pickup: {addrLine}
-                </p>
-              ) : null}
-              <p className="text-[11px] text-muted-foreground">
-                {p.pickupTimeLabel || "—"} · {p.packageKms > 0 ? `${Math.round(p.packageKms)} km` : "—"}
+              <p className="text-sm font-bold leading-snug tracking-tight text-foreground">
+                {p.routeTitleShort}
               </p>
               <p className="text-[11px] text-muted-foreground">{p.carType}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-lg font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
+              <p className="text-lg font-bold text-emerald-600 tabular-nums dark:text-emerald-400">
                 {formatCurrency(p.vendorCost)}
               </p>
               <p className="text-[10px] text-muted-foreground">your earnings</p>
-              <p className="mt-0.5 text-[11px] font-medium tabular-nums text-foreground">
-                {formatCurrency(p.totalAmt)} <span className="font-normal text-muted-foreground">total</span>
+              <p className="mt-0.5 text-[11px] font-medium tabular-nums text-slate-700 dark:text-slate-300">
+                {formatCurrency(p.totalAmt)}{" "}
+                <span className="font-normal text-muted-foreground">total</span>
               </p>
               <div className="mt-1 w-24">
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -562,14 +523,14 @@ function BookingCard({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed bg-muted/20 px-2 py-1.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40"
+            className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-violet-300/50 bg-violet-500/5 px-2 py-1.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:bg-violet-500/10"
           >
             <span>Rate &amp; step times</span>
             <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
           </button>
           {open && (
             <div className="mt-2 space-y-1 rounded-md border bg-card px-2 py-2 text-[11px]">
-              <RowMini label="Rate change (step 1)" value={p.rateChangeStep1 || "—"} />
+              <RowMini label="Rate change (step 1)" value={p.rateChangeStep1 || "—"} plain />
               <RowMini label="Step 1" value={p.step1At || "—"} />
               <RowMini label="Step 2" value={p.step2At || "—"} />
               <RowMini label="Step 3" value={p.step3At || "—"} />
@@ -577,33 +538,41 @@ function BookingCard({
           )}
         </div>
 
-        <div className="grid grid-cols-3 divide-x divide-border border-y border-border bg-muted/20 text-center text-[10px]">
-          <div className="py-2">
-            <p className="text-muted-foreground">₹/km</p>
-            <p
-              className={cn(
-                "font-semibold tabular-nums",
-                p.rpKm < 8 ? "text-amber-600 dark:text-amber-400" : "text-foreground",
-              )}
-            >
-              {p.packageKms > 0 ? p.rpKm.toFixed(1) : "—"}
-            </p>
-          </div>
-          <div className="py-2">
-            <p className="text-muted-foreground">Collect</p>
-            <p className="font-semibold tabular-nums">
-              {p.cashToCollect > 0 ? formatCurrency(p.cashToCollect) : "—"}
-            </p>
-          </div>
-          <div className="py-2">
-            <p className="text-muted-foreground">Customer total</p>
-            <p className="font-semibold tabular-nums">{formatCurrency(p.totalAmt)}</p>
+        <div className="border-y border-border bg-muted/15">
+          <div className="grid grid-cols-3 divide-x divide-border text-center text-[10px]">
+            <div className="bg-muted/30 py-2.5">
+              <p className="text-muted-foreground">₹/km</p>
+              <p
+                className={cn(
+                  "text-sm font-bold tabular-nums",
+                  p.rpKm < 8 ? "text-amber-600 dark:text-amber-400" : "text-foreground",
+                )}
+              >
+                {p.packageKms > 0 ? p.rpKm.toFixed(1) : "—"}
+              </p>
+            </div>
+            <div className="bg-muted/30 py-2.5">
+              <p className="text-muted-foreground">Collect</p>
+              <p className="text-sm font-bold tabular-nums text-foreground">
+                {p.cashToCollect > 0 ? formatCurrency(p.cashToCollect) : "—"}
+              </p>
+            </div>
+            <div className="bg-sky-500/10 py-2 dark:bg-sky-500/15">
+              <p className="text-[9px] font-medium uppercase tracking-wide text-sky-800/80 dark:text-sky-200/90">
+                Pickup trip
+              </p>
+              <p className="text-xs font-bold leading-tight text-sky-900 dark:text-sky-100">{parts.dateStr}</p>
+              <p className="text-xs font-bold leading-tight text-sky-900 dark:text-sky-100">{parts.timeStr}</p>
+              <p className="text-xs font-bold leading-tight text-sky-900 dark:text-sky-100">{kmStr}</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs">
-          <span className="text-muted-foreground">Expires</span>
-          <span className={cn("font-medium tabular-nums", timerClass)}>{timerLabel}</span>
+        <div className="flex items-center justify-between border-b border-border bg-amber-500/5 px-4 py-2 text-xs">
+          <span className="font-medium text-muted-foreground">Expires</span>
+          <span className={cn("font-bold tabular-nums", timerClass)}>
+            {formatExpiresLabel(p.hoursLeft)}
+          </span>
         </div>
 
         <div className="flex items-center gap-2 p-3">
@@ -621,16 +590,40 @@ function BookingCard({
             <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
+
+        {addrLine ? (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-2 border-t border-border bg-slate-50/90 px-3 py-3 text-[11px] leading-snug text-slate-800 transition-colors hover:bg-slate-100 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-900"
+          >
+            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600" aria-hidden />
+            <span>
+              <span className="font-semibold text-foreground">Pickup address · </span>
+              {addrLine}
+            </span>
+          </a>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function RowMini({ label, value }: { label: string; value: string }) {
+function RowMini({
+  label,
+  value,
+  plain,
+}: {
+  label: string;
+  value: string;
+  plain?: boolean;
+}) {
+  const text = plain ? value : formatSavariDateTime(value);
   return (
     <div className="flex justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 text-right font-mono text-[10px] tabular-nums text-foreground">{value}</span>
+      <span className="min-w-0 text-right font-mono text-[10px] tabular-nums text-foreground">{text}</span>
     </div>
   );
 }

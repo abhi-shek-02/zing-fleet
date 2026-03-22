@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils-date";
+import { formatExpiresLabel, formatSavariDateTime, googleMapsSearchUrl } from "@/lib/savariDisplay";
 import {
   buildProsCons,
   buildVerifyChecklist,
@@ -145,12 +146,13 @@ function ExpiryBlock({ p }: { p: ParsedBooking }) {
       : p.timerTone === "amber"
         ? "text-amber-500"
         : "text-emerald-500";
+  const rawCancel = str(savariPick(p.row, "autoCancelAt", "auto_cancel_at"));
   const label =
-    p.hoursLeft == null
-      ? str(savariPick(p.row, "autoCancelAt", "auto_cancel_at")) || "—"
-      : p.hoursLeft < 1
-        ? `${Math.round(p.hoursLeft * 60)} min left`
-        : `${p.hoursLeft.toFixed(1)}h left`;
+    p.hoursLeft != null
+      ? formatExpiresLabel(p.hoursLeft)
+      : rawCancel
+        ? formatSavariDateTime(rawCancel)
+        : "—";
   return (
     <div className="mb-4 flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-sm">
       <span className="text-muted-foreground">Expires</span>
@@ -167,9 +169,15 @@ function TripGlance({ p }: { p: ParsedBooking }) {
       </p>
       <p className="mb-2 text-base font-semibold">{p.routeTitleShort}</p>
       {p.pickAddress ? (
-        <p className="mb-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Pickup address:</span> {p.pickAddress}
-        </p>
+        <a
+          href={googleMapsSearchUrl(p.pickAddress)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-2 block text-xs text-sky-600 underline-offset-2 hover:underline dark:text-sky-400"
+        >
+          <span className="font-medium text-foreground">Pickup address · </span>
+          {p.pickAddress}
+        </a>
       ) : null}
       <div className="flex items-start justify-between gap-2 text-sm">
         <div className="min-w-0">
@@ -253,18 +261,24 @@ function TripLogistics({ row, p }: { row: Record<string, unknown>; p: ParsedBook
         Trip logistics
       </p>
       <dl className="space-y-2 text-sm">
-        <RowD label="Start" value={p.pickupTimeLabel || "—"} />
+        <RowD
+          label="Start"
+          value={p.pickupTimeLabel ? formatSavariDateTime(p.pickupTimeLabel) : "—"}
+        />
         <RowD label="Trip type" value={p.tripTypeName || "—"} />
         <RowD label="Distance" value={p.packageKms > 0 ? `${Math.round(p.packageKms)} km` : "—"} />
         <RowD label="Duration (indicative)" value={dur} />
         <RowD label="Car required" value={p.carType || "—"} />
         <RowD label="Night allowance" value={p.nightAllowance > 0 ? formatCurrency(p.nightAllowance) : "—"} />
         <RowD label="Toll / state tax" value={toll !== "—" ? toll : "Check fare terms"} />
-        <RowD label="Booked on" value={bookedOn} />
+        <RowD
+          label="Booked on"
+          value={bookedOn && bookedOn !== "—" ? formatSavariDateTime(bookedOn) : "—"}
+        />
         <RowD label="Rate change (step 1)" value={p.rateChangeStep1 || "—"} />
-        <RowD label="Step 1 at" value={p.step1At || "—"} />
-        <RowD label="Step 2 at" value={p.step2At || "—"} />
-        <RowD label="Step 3 at" value={p.step3At || "—"} />
+        <RowD label="Step 1 at" value={p.step1At ? formatSavariDateTime(p.step1At) : "—"} />
+        <RowD label="Step 2 at" value={p.step2At ? formatSavariDateTime(p.step2At) : "—"} />
+        <RowD label="Step 3 at" value={p.step3At ? formatSavariDateTime(p.step3At) : "—"} />
       </dl>
     </div>
   );
