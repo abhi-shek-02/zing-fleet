@@ -1,0 +1,59 @@
+/**
+ * Shared Savaari vendor session + upstream fetch (used by /api/savaari routes and the bot scheduler).
+ * postInterest / bidding stays OUT of this file until you explicitly enable it elsewhere.
+ */
+
+const DEFAULT_BOOKING_API =
+  "https://vendor.savaari.com/vendor/api/booking/v1/booking.php";
+
+/** Same as vendorToken on vendor.savaari.com */
+const SAVAARI_VENDOR_TOKEN =
+  "SkM5QmlFaVFsNEdvVjRHbFB4N2pXdXcrQjFSc296YmNPMnAzTUVkbWtYYUhjeDJmNVdrU3JlR2VWNHYxVnVWcHAyL0pSTGVBQjVJU0ZMeEgwQVVZTmFyWStuSitQcUh0cVpzaTFqOGhZc0E1a0ZFMUFTK0ZMeW0zYUd1dGlleXc=";
+
+const HEADERS = {
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9,hi;q=0.8",
+  Referer: "https://vendor.savaari.com/vendor/layout.html",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+};
+
+/**
+ * @param {string} [bookingId]
+ * @returns {Promise<object>} raw upstream JSON
+ */
+async function fetchSavaariNewBusiness(bookingId = "0") {
+  const base =
+    (process.env.SAVAARI_BOOKING_API_URL || "").trim() || DEFAULT_BOOKING_API;
+  const url = new URL(base);
+  url.searchParams.set("action", "getNewBusiness");
+  url.searchParams.set("vendorToken", SAVAARI_VENDOR_TOKEN);
+  url.searchParams.set("booking_id", String(bookingId));
+
+  const upstreamRes = await fetch(url.toString(), {
+    method: "GET",
+    headers: HEADERS,
+  });
+
+  const text = await upstreamRes.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("Savaari returned non-JSON response");
+  }
+
+  if (!upstreamRes.ok) {
+    const err = new Error(`Savaari HTTP ${upstreamRes.status}`);
+    err.status = upstreamRes.status;
+    throw err;
+  }
+
+  return json;
+}
+
+module.exports = {
+  SAVAARI_VENDOR_TOKEN,
+  DEFAULT_BOOKING_API,
+  fetchSavaariNewBusiness,
+};

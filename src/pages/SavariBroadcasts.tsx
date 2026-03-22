@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bot, ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils-date";
 import {
@@ -154,16 +154,24 @@ export default function SavariBroadcastsPage() {
             {rawCount === 0 && "Rule-based cards — no AI"}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="shrink-0"
-          onClick={() => void q.refetch()}
-          disabled={q.isFetching}
-          aria-label="Refresh"
-        >
-          <RefreshCw className={cn("h-4 w-4", q.isFetching && "animate-spin")} />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="outline" size="sm" className="h-9 gap-1 px-2 text-xs" asChild>
+            <Link to="/savari/bot">
+              <Bot className="h-3.5 w-3.5" />
+              Bot
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => void q.refetch()}
+            disabled={q.isFetching}
+            aria-label="Refresh"
+          >
+            <RefreshCw className={cn("h-4 w-4", q.isFetching && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       {!q.isLoading && !q.isError && rawItems.length > 0 && (

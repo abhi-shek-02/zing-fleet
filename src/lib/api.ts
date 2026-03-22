@@ -118,7 +118,7 @@ export const api = {
   // Health
   health: () => request<{ status: string }>("/health"),
 
-  /** Savaari vendor feed (proxied). Requires SAVAARI_VENDOR_TOKEN on backend. */
+  /** Savaari vendor feed (proxied GET). Vendor token is set in backend `routes/savaari.js`. */
   getSavaariBroadcasts: (params?: { booking_id?: string }) =>
     request<{
       items: Record<string, unknown>[];
@@ -126,6 +126,18 @@ export const api = {
       /** Upstream summary; includes totalCount, carTypes, counts by segment, etc. */
       resultset?: Record<string, unknown>;
     }>(`/api/savaari/new-business${qs(params)}`),
+
+  /** Bot config + routes (Supabase via Express). */
+  getSavariBotConfig: (vendorId: string) =>
+    request<{ config: Record<string, unknown> | null; routes: Record<string, unknown>[] }>(
+      `/api/savari-bot/config${qs({ vendor_id: vendorId })}`,
+    ),
+
+  putSavariBotConfig: (body: { config: Record<string, unknown>; routes: Record<string, unknown>[] }) =>
+    request<{ config: Record<string, unknown>; routes: Record<string, unknown>[] }>(
+      "/api/savari-bot/config",
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
 
   // Drivers
   getDrivers: () => request<any[]>("/api/drivers"),

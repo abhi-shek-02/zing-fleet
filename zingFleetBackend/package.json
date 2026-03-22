@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "migrate": "psql $SUPABASE_DB_URL -f supabase/migrations/001_init.sql"
+    "migrate": "psql $SUPABASE_DB_URL -f supabase/migrations/001_init.sql",
+    "scheduler:savari": "node src/workers/savariBotScheduler.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

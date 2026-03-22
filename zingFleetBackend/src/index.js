@@ -22,6 +22,7 @@ const analyticsRoutes = require("./routes/analytics");
 const settingsRoutes = require("./routes/settings");
 const authRoutes = require("./routes/auth");
 const savaariRoutes = require("./routes/savaari");
+const savariBotRoutes = require("./routes/savariBot");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -59,6 +60,7 @@ app.use(
 app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/savaari", savaariRoutes);
+app.use("/api/savari-bot", savariBotRoutes);
 app.use("/api/drivers", driverRoutes);
 app.use("/api/cars", carRoutes);
 app.use("/api/cash", cashRoutes);
@@ -82,5 +84,9 @@ app.use(errorHandler);
 
 // ─── Start ───────────────────────────────────────────────
 app.listen(PORT);
+
+if (process.env.SAVARI_BOT_SCHEDULER === "1" || process.env.SAVARI_BOT_SCHEDULER === "true") {
+  require("./workers/savariBotScheduler").start();
+}
 
 module.exports = app;

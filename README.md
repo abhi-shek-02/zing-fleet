@@ -95,3 +95,9 @@ On the **backend**, set `FRONTEND_URL` to your deployed app URL (e.g. `https://z
 - **Driver profit leaderboard** — see who generates most profit
 - **Actionable alerts** — warnings for low mileage, loss-making cars
 - **Mobile-first design** — built for one-handed phone use
+
+## Savaari Booking Bot (UI prototype)
+
+- **Broadcasts:** `/savari` — vendor feed cards  
+- **Bot dashboard (dummy data):** `/savari/bot` — automation settings, route minima, activity log (design reference)  
+- **Plan + Supabase SQL:** see [`SAVARI_BOT_README.md`](./SAVARI_BOT_README.md)
