@@ -4,7 +4,7 @@ import { setSession } from "@/lib/store";
 import { resolveRoleFromPin } from "@/lib/auth-frontend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Loader2 } from "lucide-react";
+import { Bot, Lock, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [pin, setPin] = useState("");
@@ -55,6 +55,12 @@ export default function LoginPage() {
           </Button>
           <Button variant="outline" className="w-full h-11" asChild>
             <Link to="/savari">SAVVARI</Link>
+          </Button>
+          <Button variant="outline" className="w-full h-11 gap-2" asChild>
+            <Link to="/savari/bot">
+              <Bot className="h-4 w-4" />
+              Savaari bot
+            </Link>
           </Button>
           <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
             Admin and staff use different PINs. Staff cannot delete entries or payments from the app.
