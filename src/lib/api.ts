@@ -123,7 +123,8 @@ export const api = {
     request<{
       items: Record<string, unknown>[];
       status?: boolean;
-      resultset?: unknown;
+      /** Upstream summary; includes totalCount, carTypes, counts by segment, etc. */
+      resultset?: Record<string, unknown>;
     }>(`/api/savaari/new-business${qs(params)}`),
 
   // Drivers

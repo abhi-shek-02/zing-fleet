@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -6,6 +7,13 @@ import { formatCurrency } from "@/lib/utils-date";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/LoadingState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 function str(v: unknown): string {
@@ -28,6 +36,8 @@ function pick(row: Record<string, unknown>, ...keys: string[]): unknown {
   return undefined;
 }
 
+const ALL = "__all__";
+
 export default function SavariBroadcastsPage() {
   const q = useQuery({
     queryKey: ["savaari", "broadcasts"],
@@ -35,6 +45,57 @@ export default function SavariBroadcastsPage() {
   });
 
   const items = q.data?.items ?? [];
+  const resultset = q.data?.resultset;
+  const totalBookings =
+    resultset != null && typeof resultset.totalCount === "number"
+      ? resultset.totalCount
+      : items.length;
+
+  const [carFilter, setCarFilter] = useState(ALL);
+  const [paymentFilter, setPaymentFilter] = useState(ALL);
+  const [tripTypeFilter, setTripTypeFilter] = useState(ALL);
+
+  const { carOptions, paymentOptions, tripTypeOptions } = useMemo(() => {
+    const cars = new Set<string>();
+    const pays = new Set<string>();
+    const trips = new Set<string>();
+    for (const raw of items) {
+      const row = raw as Record<string, unknown>;
+      const c = pick(row, "carType", "car_type");
+      const p = pick(row, "paymentStatus", "payment_status");
+      const t = pick(row, "tripType", "trip_type");
+      if (c != null && String(c).trim() !== "") cars.add(String(c));
+      if (p != null && String(p).trim() !== "") pays.add(String(p));
+      if (t != null && String(t).trim() !== "") trips.add(String(t));
+    }
+    const sort = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+    return {
+      carOptions: [...cars].sort(sort),
+      paymentOptions: [...pays].sort(sort),
+      tripTypeOptions: [...trips].sort(sort),
+    };
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((raw) => {
+      const row = raw as Record<string, unknown>;
+      if (carFilter !== ALL) {
+        const c = String(pick(row, "carType", "car_type") ?? "");
+        if (c !== carFilter) return false;
+      }
+      if (paymentFilter !== ALL) {
+        const p = String(pick(row, "paymentStatus", "payment_status") ?? "");
+        if (p !== paymentFilter) return false;
+      }
+      if (tripTypeFilter !== ALL) {
+        const t = String(pick(row, "tripType", "trip_type") ?? "");
+        if (t !== tripTypeFilter) return false;
+      }
+      return true;
+    });
+  }, [items, carFilter, paymentFilter, tripTypeFilter]);
+
+  const hasFilters = carFilter !== ALL || paymentFilter !== ALL || tripTypeFilter !== ALL;
 
   return (
     <div className="mx-auto min-h-screen max-w-lg px-4 py-4 pb-8">
@@ -60,6 +121,92 @@ export default function SavariBroadcastsPage() {
         </Button>
       </div>
 
+      {!q.isLoading && !q.isError && items.length > 0 && (
+        <div className="mb-4 space-y-3">
+          <div className="rounded-lg border bg-card px-3 py-2.5 text-xs">
+            <p>
+              <span className="text-muted-foreground">Total bookings</span>{" "}
+              <span className="font-semibold tabular-nums">{totalBookings}</span>
+              {hasFilters && (
+                <>
+                  {" "}
+                  <span className="text-muted-foreground">·</span>{" "}
+                  <span className="text-muted-foreground">Showing</span>{" "}
+                  <span className="font-medium tabular-nums">{filteredItems.length}</span>
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Car</p>
+              <Select value={carFilter} onValueChange={setCarFilter}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="All cars" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All cars</SelectItem>
+                  {carOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Payment</p>
+              <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All statuses</SelectItem>
+                  {paymentOptions.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 sm:col-span-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Trip type</p>
+              <Select value={tripTypeFilter} onValueChange={setTripTypeFilter}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All trip types</SelectItem>
+                  {tripTypeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {hasFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={() => {
+                setCarFilter(ALL);
+                setPaymentFilter(ALL);
+                setTripTypeFilter(ALL);
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
+
       {q.isLoading && <LoadingSpinner label="Loading broadcasts..." />}
       {q.isError && (
         <ErrorState
@@ -75,9 +222,17 @@ export default function SavariBroadcastsPage() {
         />
       )}
 
-      {!q.isLoading && !q.isError && items.length > 0 && (
+      {!q.isLoading && !q.isError && items.length > 0 && filteredItems.length === 0 && (
+        <EmptyState
+          title="No matches"
+          subtitle="Try changing or clearing filters."
+          icon={<RefreshCw className="h-8 w-8 text-muted-foreground/40 mx-auto" />}
+        />
+      )}
+
+      {!q.isLoading && !q.isError && filteredItems.length > 0 && (
         <div className="space-y-3">
-          {items.map((raw, i) => {
+          {filteredItems.map((raw, i) => {
             const row = raw as Record<string, unknown>;
             const bookingId = str(pick(row, "bookingId", "booking_id"));
             const paymentStatus = str(pick(row, "paymentStatus", "payment_status"));
@@ -86,6 +241,7 @@ export default function SavariBroadcastsPage() {
             const totalAmt = money(pick(row, "totalAmt", "total_amt"));
             const cashToCollect = money(pick(row, "cashtocollect", "cashToCollect"));
             const vendorCost = money(pick(row, "vendorCost", "vendor_cost"));
+            const rateChangeStep1 = str(pick(row, "rateChangeStep1", "rate_change_step1"));
             const pickCity = str(pick(row, "pickCity", "pick_city"));
             const pickLoc = str(pick(row, "pickLoc", "pick_loc"));
             const pickupTime = str(pick(row, "pickupTime", "pickup_time"));
@@ -117,6 +273,7 @@ export default function SavariBroadcastsPage() {
                   <Row label="Total" value={totalAmt} mono />
                   <Row label="Cash to collect" value={cashToCollect} mono />
                   <Row label="Vendor cost" value={vendorCost} mono />
+                  <Row label="Rate change (step 1)" value={rateChangeStep1} mono />
                   <Row label="Pickup time" value={pickupTime} />
                   <Row label="Pick city" value={pickCity} />
                   <Row label="Pick location" value={pickLoc} multiline />
