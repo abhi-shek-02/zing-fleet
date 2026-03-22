@@ -1,6 +1,5 @@
 /**
  * Shared Savaari vendor session + upstream fetch (used by /api/savaari routes and the bot scheduler).
- * postInterest / bidding stays OUT of this file until you explicitly enable it elsewhere.
  */
 
 const DEFAULT_BOOKING_API =
@@ -52,8 +51,58 @@ async function fetchSavaariNewBusiness(bookingId = "0") {
   return json;
 }
 
+/**
+ * POST interest / bid on a broadcast (REAL MONEY — same vendor session as getNewBusiness).
+ * Param names follow vendor `booking.php`; if upstream rejects, capture DevTools request and align fields.
+ *
+ * @param {{ bookingId: string|number, vendorCost?: string|number, broadcastId?: string|number }} p
+ */
+async function postSavaariPostInterest(p) {
+  const base =
+    (process.env.SAVAARI_BOOKING_API_URL || "").trim() || DEFAULT_BOOKING_API;
+  const url = new URL(base);
+
+  const params = new URLSearchParams();
+  params.set("action", "postInterest");
+  params.set("vendorToken", SAVAARI_VENDOR_TOKEN);
+  params.set("booking_id", String(p.bookingId ?? "").trim());
+  if (p.vendorCost != null && String(p.vendorCost).trim() !== "") {
+    params.set("vendor_cost", String(p.vendorCost).trim());
+  }
+  if (p.broadcastId != null && String(p.broadcastId).trim() !== "") {
+    params.set("broadcast_id", String(p.broadcastId).trim());
+  }
+
+  const upstreamRes = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      ...HEADERS,
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    },
+    body: params.toString(),
+  });
+
+  const text = await upstreamRes.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("Savaari returned non-JSON response");
+  }
+
+  if (!upstreamRes.ok) {
+    const err = new Error(`Savaari HTTP ${upstreamRes.status}`);
+    err.status = upstreamRes.status;
+    err.upstream = json;
+    throw err;
+  }
+
+  return json;
+}
+
 module.exports = {
   SAVAARI_VENDOR_TOKEN,
   DEFAULT_BOOKING_API,
   fetchSavaariNewBusiness,
+  postSavaariPostInterest,
 };

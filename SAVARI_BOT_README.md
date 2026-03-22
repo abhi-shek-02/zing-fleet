@@ -10,15 +10,15 @@ This document describes the **Booking Bot** control UI (`/savari/bot`), how it r
 |------|----------------|
 | Bot UI at `/savari/bot` — loads/saves via **`GET/PUT /api/savari-bot/config`** (see `src/lib/savariBotMapping.ts`) | Optional: tune **KPI** (bids/scanned) when you add stats tables |
 | **`savari_bot_config`** + **`savari_bot_routes`** + seed | Done on your side when migration applied |
-| Express **`GET/PUT /api/savari-bot/config`** + **`lib/savaariVendor.js`** (shared token + `getNewBusiness`) | **`POST` bid (`postInterest`)** — not integrated; enable only when you say so |
-| **Scheduler** `src/workers/savariBotScheduler.js` — polls feed, applies rules from DB, **`WOULD_BID (bidding disabled)`** logs only | Same worker: later add **`postInterest`** behind a flag |
+| Express **`GET/PUT /api/savari-bot/config`** + **`lib/savaariVendor.js`** (shared token + `getNewBusiness` + **`postSavaariPostInterest`**) | — |
+| **`POST /api/savaari/bid`** — proxies vendor **`postInterest`** (REAL MONEY; call only when intended) | **Scheduler** still logs **`WOULD_BID`** only — optional auto-**`postInterest`** + flag later |
 | **Deploy logs:** `[savari-bot] GET/PUT` in **`routes/savariBot.js`**; `[savari-bot-scheduler]` in worker — remove or quiet later if you want |
 
 **Frontend deploy:** set **`VITE_API_BASE_URL`** to your API origin (HTTPS). Optional **`VITE_SAVARI_VENDOR_ID`** (defaults `175236`). Deploying alone is not enough — the browser must reach a backend that has **`SUPABASE_*`** and migration **006** applied.
 
 **Backend scheduler:** `npm run scheduler:savari` (standalone), or **`SAVARI_BOT_SCHEDULER=1`** with **`npm start`** to run API + scheduler in one process. Env: **`SAVARI_BOT_VENDOR_ID`**, **`SAVARI_BOT_INTERVAL_MS`** (optional; else uses `polling_interval_ms` from DB).
 
-**Rollout:** (1) DB + seed ✓ (2) Deploy API + frontend with env (3) Run scheduler, confirm logs, **no bid** (4) When ready, enable **`postInterest`** (separate change).
+**Rollout:** (1) DB + seed ✓ (2) Deploy API + frontend with env (3) Run scheduler, confirm logs, **no auto-bid** (4) **`POST /api/savaari/bid`** is live for manual/integrated bidding — scheduler auto-bid remains a separate change.
 
 ---
 
