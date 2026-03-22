@@ -40,6 +40,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { getRole } from "@/lib/store";
+import { canDeleteFinancialRow } from "@/lib/auth-frontend";
 
 export default function SettlementsPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -220,6 +222,12 @@ export default function SettlementsPage() {
 
   const confirmDeletePayment = async () => {
     if (!deleteSettlementId) return;
+    const row = allSettlements.find((x: { id: string }) => x.id === deleteSettlementId);
+    const ws = row && typeof row === "object" && "weekStart" in row ? String((row as { weekStart?: string }).weekStart) : "";
+    if (!canDeleteFinancialRow(getRole(), ws)) {
+      setDeleteSettlementId(null);
+      return;
+    }
     await deleteSettlement.mutateAsync(deleteSettlementId);
     setDeleteSettlementId(null);
   };
@@ -264,7 +272,7 @@ export default function SettlementsPage() {
           <div className="space-y-1.5 leading-relaxed">
             <p><span className="font-medium text-foreground">30% commission</span> — Net earning uses vendor + other earnings minus other costs; driver keeps 30% of that net; fuel is separate in the settlement.</p>
             <p><span className="font-medium text-foreground">50% profit sharing</span> — Net is all earnings minus all costs; driver keeps half; settlement uses cash vs vendor plus that share.</p>
-            <p>Record payments to reduce the remaining balance. If a payment was entered wrong, use <span className="font-medium text-foreground">Edit</span> or <span className="font-medium text-foreground">Delete</span> on that row — deleting ledger entries does not remove recorded payments.</p>
+            <p>Record payments to reduce the remaining balance. If a payment was entered wrong, use <span className="font-medium text-foreground">Edit</span> or <span className="font-medium text-foreground">Delete</span> on that row — deleting ledger entries does not remove recorded payments. Staff accounts cannot delete. Admin cannot delete payments or entries for weeks older than 14 days (from the app).</p>
           </div>
           <button type="button" onClick={() => setShowHelp(false)} className="text-xs text-primary font-medium">Dismiss</button>
         </div>
@@ -377,7 +385,9 @@ export default function SettlementsPage() {
                   {driverSettlements.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Payment History</p>
-                      {driverSettlements.map((s: { id: string; driverId?: string; date: string; paymentMode?: string; notes?: string; amount: number | string }) => (
+                      {driverSettlements.map((s: { id: string; driverId?: string; weekStart?: string; date: string; paymentMode?: string; notes?: string; amount: number | string }) => {
+                        const canDel = canDeleteFinancialRow(getRole(), s.weekStart || week);
+                        return (
                         <div key={s.id} className="flex items-center gap-2 rounded-lg border bg-card px-2 py-2">
                           <div className="flex min-w-0 flex-1 items-center gap-2">
                             <CheckCircle className="h-3.5 w-3.5 shrink-0 text-success" />
@@ -401,19 +411,22 @@ export default function SettlementsPage() {
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              aria-label="Delete payment"
-                              onClick={() => setDeleteSettlementId(s.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {canDel ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label="Delete payment"
+                                onClick={() => setDeleteSettlementId(s.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 

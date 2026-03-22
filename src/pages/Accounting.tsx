@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Banknote, Receipt, Fuel, CircleDollarSign } from "lucide-react";
+import { getRole } from "@/lib/store";
+import { canDeleteFinancialRow } from "@/lib/auth-frontend";
 
 export default function AccountingPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -66,7 +68,7 @@ export default function AccountingPage() {
   const deleteEarning = useDeleteOtherEarning();
 
   const [drawer, setDrawer] = useState<"cash" | "vendor" | "fuel" | "other" | "earning" | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string; weekStart: string } | null>(null);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const [fDate, setFDate] = useState(today);
@@ -112,7 +114,11 @@ export default function AccountingPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    const { type, id } = deleteConfirm;
+    const { type, id, weekStart } = deleteConfirm;
+    if (!canDeleteFinancialRow(getRole(), weekStart)) {
+      setDeleteConfirm(null);
+      return;
+    }
     if (type === "cash") await deleteCash.mutateAsync(id);
     else if (type === "vendor") await deleteVendor.mutateAsync(id);
     else if (type === "fuel") await deleteFuel.mutateAsync(id);
@@ -169,27 +175,87 @@ export default function AccountingPage() {
 
             <TabsContent value="cash" className="mt-3 space-y-1.5">
               <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("cash"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Cash Collected</Button>
-              {cashEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.source} onDelete={() => setDeleteConfirm({ type: "cash", id: e.id })} />)}
+              {cashEntries.map((e: any) => (
+                <EntryRow
+                  key={e.id}
+                  date={e.date}
+                  main={formatCurrency(Number(e.amount))}
+                  sub={e.source}
+                  onDelete={
+                    canDeleteFinancialRow(getRole(), e.weekStart)
+                      ? () => setDeleteConfirm({ type: "cash", id: e.id, weekStart: e.weekStart })
+                      : undefined
+                  }
+                />
+              ))}
             </TabsContent>
 
             <TabsContent value="vendor" className="mt-3 space-y-1.5">
               <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("vendor"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Vendor Amount</Button>
-              {vendorEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.bookingId || "—"} onDelete={() => setDeleteConfirm({ type: "vendor", id: e.id })} />)}
+              {vendorEntries.map((e: any) => (
+                <EntryRow
+                  key={e.id}
+                  date={e.date}
+                  main={formatCurrency(Number(e.amount))}
+                  sub={e.bookingId || "—"}
+                  onDelete={
+                    canDeleteFinancialRow(getRole(), e.weekStart)
+                      ? () => setDeleteConfirm({ type: "vendor", id: e.id, weekStart: e.weekStart })
+                      : undefined
+                  }
+                />
+              ))}
             </TabsContent>
 
             <TabsContent value="fuel" className="mt-3 space-y-1.5">
               <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("fuel"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Fuel Entry</Button>
-              {fuelEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.cost))} sub={`${e.liters}L · ${e.odometer}km`} onDelete={() => setDeleteConfirm({ type: "fuel", id: e.id })} />)}
+              {fuelEntries.map((e: any) => (
+                <EntryRow
+                  key={e.id}
+                  date={e.date}
+                  main={formatCurrency(Number(e.cost))}
+                  sub={`${e.liters}L · ${e.odometer}km`}
+                  onDelete={
+                    canDeleteFinancialRow(getRole(), e.weekStart)
+                      ? () => setDeleteConfirm({ type: "fuel", id: e.id, weekStart: e.weekStart })
+                      : undefined
+                  }
+                />
+              ))}
             </TabsContent>
 
             <TabsContent value="other" className="mt-3 space-y-1.5">
               <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("other"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Cost</Button>
-              {otherEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.costType} onDelete={() => setDeleteConfirm({ type: "other", id: e.id })} />)}
+              {otherEntries.map((e: any) => (
+                <EntryRow
+                  key={e.id}
+                  date={e.date}
+                  main={formatCurrency(Number(e.amount))}
+                  sub={e.costType}
+                  onDelete={
+                    canDeleteFinancialRow(getRole(), e.weekStart)
+                      ? () => setDeleteConfirm({ type: "other", id: e.id, weekStart: e.weekStart })
+                      : undefined
+                  }
+                />
+              ))}
             </TabsContent>
 
             <TabsContent value="earning" className="mt-3 space-y-1.5">
               <Button size="sm" className="w-full h-9 text-xs" onClick={() => { resetForm(); setDrawer("earning"); }}><Plus className="mr-1 h-3.5 w-3.5" /> Add Earning</Button>
-              {earningEntries.map((e: any) => <EntryRow key={e.id} date={e.date} main={formatCurrency(Number(e.amount))} sub={e.source} onDelete={() => setDeleteConfirm({ type: "earning", id: e.id })} />)}
+              {earningEntries.map((e: any) => (
+                <EntryRow
+                  key={e.id}
+                  date={e.date}
+                  main={formatCurrency(Number(e.amount))}
+                  sub={e.source}
+                  onDelete={
+                    canDeleteFinancialRow(getRole(), e.weekStart)
+                      ? () => setDeleteConfirm({ type: "earning", id: e.id, weekStart: e.weekStart })
+                      : undefined
+                  }
+                />
+              ))}
             </TabsContent>
           </Tabs>
 
@@ -309,7 +375,7 @@ export default function AccountingPage() {
   );
 }
 
-function EntryRow({ date, main, sub, onDelete }: { date: string; main: string; sub: string; onDelete: () => void }) {
+function EntryRow({ date, main, sub, onDelete }: { date: string; main: string; sub: string; onDelete?: () => void }) {
   return (
     <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5">
       <div>
@@ -318,9 +384,11 @@ function EntryRow({ date, main, sub, onDelete }: { date: string; main: string; s
       </div>
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold tabular-nums">{main}</p>
-        <button onClick={onDelete} className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        {onDelete ? (
+          <button type="button" onClick={onDelete} className="rounded-md p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
     </div>
   );

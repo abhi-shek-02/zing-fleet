@@ -161,7 +161,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Vendor + other earnings − driver share − fuel − other costs</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Earnings − driver share − fuel − other costs</p>
           </div>
           <TrendingUp className={`h-5 w-5 ${totals.netProfit >= 0 ? "text-success" : "text-destructive"}`} />
         </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { setAuthenticated } from "@/lib/store";
-import { api, ApiError } from "@/lib/api";
+import { setSession } from "@/lib/store";
+import { resolveRoleFromPin } from "@/lib/auth-frontend";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Loader2 } from "lucide-react";
@@ -16,19 +16,15 @@ export default function LoginPage() {
     if (!pin) return;
     setLoading(true);
     setError("");
-    try {
-      // await api.login(pin);
-      setAuthenticated();
-      navigate("/");
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.status === 401 ? "Invalid PIN" : err.message);
-      } else {
-        setError("Cannot reach server. Is the backend running?");
-      }
-    } finally {
+    const role = resolveRoleFromPin(pin.trim());
+    if (!role) {
+      setError("Invalid PIN");
       setLoading(false);
+      return;
     }
+    setSession(role);
+    navigate("/");
+    setLoading(false);
   };
 
   return (
@@ -48,14 +44,18 @@ export default function LoginPage() {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            className="text-center text-lg tracking-[0.5em] h-12"
-            maxLength={6}
+            className="text-center text-lg tracking-[0.2em] h-12"
+            maxLength={32}
+            autoComplete="current-password"
           />
           {error && <p className="text-xs text-destructive text-center">{error}</p>}
           <Button onClick={handleLogin} className="w-full h-11" disabled={!pin || loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {loading ? "Verifying..." : "Unlock"}
+            {loading ? "Unlocking..." : "Unlock"}
           </Button>
+          <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
+            Admin and staff use different PINs. Staff cannot delete entries or payments from the app.
+          </p>
         </div>
       </div>
     </div>
