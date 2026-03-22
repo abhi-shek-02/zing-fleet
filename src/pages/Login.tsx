@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { setSession } from "@/lib/store";
 import { resolveRoleFromPin } from "@/lib/auth-frontend";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,9 @@ export default function LoginPage() {
           <Button onClick={handleLogin} className="w-full h-11" disabled={!pin || loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {loading ? "Unlocking..." : "Unlock"}
+          </Button>
+          <Button variant="outline" className="w-full h-11" asChild>
+            <Link to="/savari">SAVVARI</Link>
           </Button>
           <p className="text-[10px] text-center text-muted-foreground leading-relaxed">
             Admin and staff use different PINs. Staff cannot delete entries or payments from the app.

@@ -118,6 +118,14 @@ export const api = {
   // Health
   health: () => request<{ status: string }>("/health"),
 
+  /** Savaari vendor feed (proxied). Requires SAVAARI_VENDOR_TOKEN on backend. */
+  getSavaariBroadcasts: (params?: { booking_id?: string }) =>
+    request<{
+      items: Record<string, unknown>[];
+      status?: boolean;
+      resultset?: unknown;
+    }>(`/api/savaari/new-business${qs(params)}`),
+
   // Drivers
   getDrivers: () => request<any[]>("/api/drivers"),
   getSettlementModeHistory: () => request<any[]>("/api/drivers/settlement-mode-history"),

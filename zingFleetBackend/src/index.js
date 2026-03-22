@@ -21,6 +21,7 @@ const carDocRoutes = require("./routes/carDocs");
 const analyticsRoutes = require("./routes/analytics");
 const settingsRoutes = require("./routes/settings");
 const authRoutes = require("./routes/auth");
+const savaariRoutes = require("./routes/savaari");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -57,6 +58,7 @@ app.use(
 // ─── Routes ──────────────────────────────────────────────
 app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/savaari", savaariRoutes);
 app.use("/api/drivers", driverRoutes);
 app.use("/api/cars", carRoutes);
 app.use("/api/cash", cashRoutes);

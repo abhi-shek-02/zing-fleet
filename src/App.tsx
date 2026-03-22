@@ -13,6 +13,7 @@ import SettlementsPage from "@/pages/Settlements";
 import ReportsPage from "@/pages/Reports";
 import AnalyticsPage from "@/pages/Analytics";
 import NotFound from "@/pages/NotFound";
+import SavariBroadcastsPage from "@/pages/SavariBroadcasts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +46,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/savari" element={<SavariBroadcastsPage />} />
           <Route path="/" element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
           <Route path="/drivers" element={<ProtectedRoute><AppLayout><DriversPage /></AppLayout></ProtectedRoute>} />
           <Route path="/drivers/:id" element={<ProtectedRoute><AppLayout><DriverDetailPage /></AppLayout></ProtectedRoute>} />
