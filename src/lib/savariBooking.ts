@@ -3,9 +3,9 @@
  * from numeric fields + payment labels + trip metadata.
  */
 
-export type SavariSortKey = "urgency" | "earnings" | "rpkm" | "lowRisk";
+export type SavariSortKey = "urgency" | "earnings" | "rpkm" | "prepaidFirst";
 
-export type ListFilterPill = "all" | "prepaid" | "urgent6h" | "surged";
+export type ListFilterPill = "all" | "prepaid" | "urgent6h";
 
 /** Exported for detail page + cards — camelCase / snake_case tolerant. */
 export function savariPick(row: Record<string, unknown>, ...keys: string[]): unknown {
@@ -51,6 +51,87 @@ function normCity(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/** First segment before comma — e.g. "Kolkata, WB" → "Kolkata" for route title. */
+export function cityShort(s: string): string {
+  if (!s) return "";
+  return s.split(",")[0].trim();
+}
+
+/**
+ * Fleet policy: only Toyota Etios-class and Wagon R (excludes Crysta / Innova / SUV / Ertiga).
+ * Applied once after fetch so totals and averages match the visible list.
+ */
+export function isFleetAllowedCar(carType: string): boolean {
+  const n = carType.toLowerCase();
+  if (!n.trim()) return false;
+  if (/\binnova\b/i.test(n) || /crysta/i.test(n)) return false;
+  if (/\bsuv\b/i.test(n)) return false;
+  if (/\bertiga\b/i.test(n)) return false;
+  const etios = /\betios\b/i.test(n) && !/crysta/i.test(n);
+  const wagon =
+    /wagon\s*r/i.test(n) || /wagonr/i.test(n) || (n.includes("wagon") && n.includes("maruti"));
+  return etios || wagon;
+}
+
+export function filterRowsByFleetCar(items: Record<string, unknown>[]): Record<string, unknown>[] {
+  return items.filter((row) => isFleetAllowedCar(str(row as Record<string, unknown>, "carType", "car_type")));
+}
+
+/** Resolve cities with extra upstream keys + fallback from address lines (helps grouping). */
+function resolveCityFields(row: Record<string, unknown>): {
+  pickCity: string;
+  dropCity: string;
+  pickAddress: string;
+  dropAddress: string;
+} {
+  let pickCity = str(
+    row,
+    "pickCity",
+    "pick_city",
+    "pickupCity",
+    "pickup_city",
+    "fromCity",
+    "from_city",
+    "from_city_name",
+    "trip_start_city_name",
+    "start_city",
+  );
+  let dropCity = str(
+    row,
+    "dropCity",
+    "drop_city",
+    "dropCityName",
+    "drop_city_name",
+    "toCity",
+    "to_city",
+    "to_city_name",
+    "trip_end_city_name",
+    "end_city",
+  );
+  const pickAddress = str(
+    row,
+    "pickLoc",
+    "pick_loc",
+    "pickupLoc",
+    "pickup_loc",
+    "pickup_address",
+    "pick_address",
+    "pickupAddress",
+  );
+  const dropAddress = str(
+    row,
+    "dropLoc",
+    "drop_loc",
+    "dropoffLoc",
+    "drop_address",
+    "dropAddress",
+    "dropoff_address",
+  );
+  if (!pickCity && pickAddress) pickCity = cityShort(pickAddress);
+  if (!dropCity && dropAddress) dropCity = cityShort(dropAddress);
+  return { pickCity, dropCity, pickAddress, dropAddress };
+}
+
 export type ParsedBooking = {
   row: Record<string, unknown>;
   bookingId: string;
@@ -77,11 +158,18 @@ export type ParsedBooking = {
   tripTypeName: string;
   pickCity: string;
   dropCity: string;
+  /** "Kolkata → Asansol" using short city names */
+  routeTitleShort: string;
   routeLabel: string;
+  pickAddress: string;
+  dropAddress: string;
   pickupTimeLabel: string;
   autoCancelAtRaw: string;
   tripSubType: number | null;
   rateChangeStep1: string;
+  step1At: string;
+  step2At: string;
+  step3At: string;
 };
 
 function paymentPoints(label: string, cashRiskPct: number): number {
@@ -158,7 +246,6 @@ export function parseBooking(row: Record<string, unknown>): ParsedBooking {
 
   let borderAccent: ParsedBooking["borderAccent"] = "none";
   if (hoursLeft != null && hoursLeft < 6) borderAccent = "red";
-  else if (isSurged) borderAccent = "amber";
 
   let timerTone: ParsedBooking["timerTone"] = "green";
   if (hoursLeft != null) {
@@ -185,10 +272,13 @@ export function parseBooking(row: Record<string, unknown>): ParsedBooking {
   const tripSubType =
     tripSubRaw != null && tripSubRaw !== "" ? Number(tripSubRaw) : null;
 
-  const pickCity = str(row, "pickCity", "pick_city", "pickupCity", "pickup_city");
-  const dropCity = str(row, "dropCity", "drop_city", "dropCityName", "drop_city_name");
+  const { pickCity, dropCity, pickAddress, dropAddress } = resolveCityFields(row);
+  const ps = cityShort(pickCity);
+  const ds = cityShort(dropCity);
+  const routeTitleShort =
+    ps && ds ? `${ps} → ${ds}` : ps || ds || "—";
   const routeLabel =
-    pickCity && dropCity ? `${pickCity} → ${dropCity}` : pickCity || dropCity || "—";
+    pickCity && dropCity ? `${pickCity} → ${dropCity}` : pickCity || dropCity || routeTitleShort;
 
   const nightAllowance = num(row, "nightAllowance", "night_allowance", "nightCharge", "night_charge");
 
@@ -215,11 +305,17 @@ export function parseBooking(row: Record<string, unknown>): ParsedBooking {
     tripTypeName: str(row, "tripTypeName", "trip_type_name"),
     pickCity,
     dropCity,
+    routeTitleShort,
     routeLabel,
+    pickAddress,
+    dropAddress,
     pickupTimeLabel: str(row, "pickupTime", "pickup_time"),
     autoCancelAtRaw: autoRaw,
     tripSubType,
     rateChangeStep1: str(row, "rateChangeStep1", "rate_change_step1"),
+    step1At: str(row, "step1At", "step1_at"),
+    step2At: str(row, "step2At", "step2_at"),
+    step3At: str(row, "step3At", "step3_at"),
   };
 }
 
@@ -227,7 +323,7 @@ export function sortParsedBookings(list: ParsedBooking[], key: SavariSortKey): P
   const copy = [...list];
   const urgency = (p: ParsedBooking) =>
     p.msUntilCancel != null ? p.msUntilCancel : Number.POSITIVE_INFINITY;
-  const risk = (p: ParsedBooking) => p.cashRiskPct;
+  const prepaidRank = (p: ParsedBooking) => (p.isPrepaid ? 0 : 1);
 
   copy.sort((a, b) => {
     switch (key) {
@@ -235,8 +331,11 @@ export function sortParsedBookings(list: ParsedBooking[], key: SavariSortKey): P
         return b.vendorCost - a.vendorCost;
       case "rpkm":
         return b.rpKm - a.rpKm;
-      case "lowRisk":
-        return risk(a) - risk(b);
+      case "prepaidFirst": {
+        const pr = prepaidRank(a) - prepaidRank(b);
+        if (pr !== 0) return pr;
+        return urgency(a) - urgency(b);
+      }
       case "urgency":
       default:
         return urgency(a) - urgency(b);
@@ -249,7 +348,6 @@ export function filterByPill(list: ParsedBooking[], pill: ListFilterPill): Parse
   if (pill === "all") return list;
   if (pill === "prepaid") return list.filter((p) => p.isPrepaid);
   if (pill === "urgent6h") return list.filter((p) => p.hoursLeft != null && p.hoursLeft < 6);
-  if (pill === "surged") return list.filter((p) => p.isSurged);
   return list;
 }
 
@@ -287,13 +385,45 @@ export type BookingGroup = {
 };
 
 function pickupMs(p: ParsedBooking): number | null {
-  return parseWhen(pick(p.row, "pickupTime", "pickup_time"));
+  const row = p.row;
+  const t =
+    parseWhen(pick(row, "pickupTime", "pickup_time")) ??
+    parseWhen(pick(row, "trip_start_time", "tripStartTime")) ??
+    parseWhen(pick(row, "pickupDateTime", "pickup_datetime")) ??
+    parseWhen(pick(row, "startTime", "start_time"));
+  return t;
 }
 
-function isRoundTripSelfContained(p: ParsedBooking): boolean {
+export function isRoundTripSelfContained(p: ParsedBooking): boolean {
   if (p.tripSubType === 8) return true;
   const n = p.tripTypeName.toLowerCase();
   return n.includes("round trip") || n.includes("round-trip");
+}
+
+export type GroupDebugInfo = {
+  rawFeedCount: number;
+  fleetFilteredCount: number;
+  eligibleForPairing: number;
+  withBothCities: number;
+  withPickupTime: number;
+  roundTripSkipped: number;
+};
+
+export function computeGroupDebug(
+  rawCount: number,
+  fleetFiltered: ParsedBooking[],
+): GroupDebugInfo {
+  const eligible = fleetFiltered.filter((p) => !isRoundTripSelfContained(p));
+  const withBothCities = eligible.filter((p) => normCity(p.pickCity) && normCity(p.dropCity));
+  const withPickupTime = eligible.filter((p) => pickupMs(p) != null);
+  return {
+    rawFeedCount: rawCount,
+    fleetFilteredCount: fleetFiltered.length,
+    eligibleForPairing: eligible.length,
+    withBothCities: withBothCities.length,
+    withPickupTime: withPickupTime.length,
+    roundTripSkipped: fleetFiltered.length - eligible.length,
+  };
 }
 
 const routeKey = (p: ParsedBooking) =>
@@ -432,10 +562,10 @@ export function buildProsCons(
   if (p.isPrepaid && p.cashRiskPct < 5) {
     out.push({ kind: "pro", text: "Pre-paid — minimal collection exposure." });
   }
-  if (p.cashRiskPct >= 50) {
+  if (p.cashToCollect >= 15_000) {
     out.push({
       kind: "con",
-      text: `Cash risk ${p.cashRiskPct.toFixed(0)}% (${formatInr(p.cashToCollect)} to collect). Verify customer if you accept.`,
+      text: `${formatInr(p.cashToCollect)} to collect on trip — verify customer if you accept.`,
     });
   }
   if (p.packageKms >= 800) {
@@ -443,9 +573,6 @@ export function buildProsCons(
       kind: "con",
       text: `Long haul (~${Math.round(p.packageKms)} km) — multi-day driver commitment and positioning cost.`,
     });
-  }
-  if (p.isSurged) {
-    out.push({ kind: "neutral", text: "Demand spike / surge on this lane — others may grab quickly." });
   }
   if (nextBestEarn > 0 && p.vendorCost < nextBestEarn * 0.85) {
     out.push({
@@ -485,16 +612,16 @@ export function buildVerifyChecklist(p: ParsedBooking): { label: string; hint: s
 }
 
 export function headlineAnalysis(p: ParsedBooking): { title: string; body: string } {
-  if (p.cashRiskPct >= 70 && p.rpKm >= 12) {
+  if (p.cashToCollect >= 20_000 && p.rpKm >= 12) {
     return {
-      title: "Accept with caution — high reward, high cash risk",
-      body: `Strong ₹/km, but ${formatInr(p.cashToCollect)} to collect (${p.cashRiskPct.toFixed(0)}% cash risk). Verify before you commit.`,
+      title: "Accept with caution — high reward, large collect",
+      body: `Strong ₹/km, but ${formatInr(p.cashToCollect)} to collect on trip. Verify before you commit.`,
     };
   }
   if (p.isPrepaid && p.rpKm >= 10) {
     return {
       title: "Strong candidate — prepaid, solid efficiency",
-      body: `₹${p.rpKm.toFixed(1)}/km with limited collection risk.`,
+      body: `₹${p.rpKm.toFixed(1)}/km with limited collection left.`,
     };
   }
   if (p.hoursLeft != null && p.hoursLeft < 6) {
@@ -505,7 +632,7 @@ export function headlineAnalysis(p: ParsedBooking): { title: string; body: strin
   }
   return {
     title: "Review trip economics",
-    body: `Check ₹/km (${p.rpKm.toFixed(1)}), cash risk (${p.cashRiskPct.toFixed(0)}%), and your car availability.`,
+    body: `Check ₹/km (${p.rpKm.toFixed(1)}), collect ${formatInr(p.cashToCollect)}, and car fit.`,
   };
 }
 

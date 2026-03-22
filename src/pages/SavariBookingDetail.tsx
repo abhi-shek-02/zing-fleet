@@ -7,6 +7,8 @@ import { formatCurrency } from "@/lib/utils-date";
 import {
   buildProsCons,
   buildVerifyChecklist,
+  cityShort,
+  filterRowsByFleetCar,
   findRowByBookingId,
   headlineAnalysis,
   listAvgRpKm,
@@ -35,6 +37,10 @@ export default function SavariBookingDetail() {
   });
 
   const items = q.data?.items ?? [];
+  const fleetRows = useMemo(
+    () => filterRowsByFleetCar(items as Record<string, unknown>[]),
+    [items],
+  );
 
   const row = useMemo(() => {
     if (state?.row && bookingId) {
@@ -42,22 +48,22 @@ export default function SavariBookingDetail() {
       if (id === bookingId) return state.row;
     }
     if (!bookingId) return undefined;
-    return findRowByBookingId(items as Record<string, unknown>[], bookingId);
-  }, [state?.row, items, bookingId]);
+    return findRowByBookingId(fleetRows, bookingId);
+  }, [state?.row, fleetRows, bookingId]);
 
   const parsed = useMemo(() => (row ? parseBooking(row) : null), [row]);
 
   const listAvg = useMemo(() => {
-    const parsedList = (items as Record<string, unknown>[]).map(parseBooking);
+    const parsedList = fleetRows.map(parseBooking);
     return listAvgRpKm(parsedList);
-  }, [items]);
+  }, [fleetRows]);
 
   const nextBestEarn = useMemo(() => {
     if (!parsed) return 0;
-    const parsedList = (items as Record<string, unknown>[]).map(parseBooking);
+    const parsedList = fleetRows.map(parseBooking);
     const others = parsedList.filter((p) => p.bookingId !== parsed.bookingId);
     return others.reduce((m, p) => Math.max(m, p.vendorCost), 0);
-  }, [items, parsed]);
+  }, [fleetRows, parsed]);
 
   const prosCons = useMemo(
     () => (parsed ? buildProsCons(parsed, listAvg, nextBestEarn) : []),
@@ -159,10 +165,16 @@ function TripGlance({ p }: { p: ParsedBooking }) {
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         Trip at a glance
       </p>
+      <p className="mb-2 text-base font-semibold">{p.routeTitleShort}</p>
+      {p.pickAddress ? (
+        <p className="mb-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Pickup address:</span> {p.pickAddress}
+        </p>
+      ) : null}
       <div className="flex items-start justify-between gap-2 text-sm">
         <div className="min-w-0">
-          <p className="font-semibold leading-tight">{p.pickCity || "—"}</p>
-          <p className="text-[10px] text-muted-foreground">Pickup</p>
+          <p className="font-semibold leading-tight">{cityShort(p.pickCity) || "—"}</p>
+          <p className="text-[10px] text-muted-foreground">Pickup area</p>
         </div>
         <div className="flex flex-1 flex-col items-center px-1">
           <span className="text-[10px] text-muted-foreground tabular-nums">
@@ -171,8 +183,8 @@ function TripGlance({ p }: { p: ParsedBooking }) {
           <div className="my-1 h-px w-full bg-border" />
         </div>
         <div className="min-w-0 text-right">
-          <p className="font-semibold leading-tight">{p.dropCity || "—"}</p>
-          <p className="text-[10px] text-muted-foreground">Drop</p>
+          <p className="font-semibold leading-tight">{cityShort(p.dropCity) || "—"}</p>
+          <p className="text-[10px] text-muted-foreground">Drop area</p>
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">{p.tripTypeName}</p>
@@ -191,12 +203,12 @@ function KeyNumbers({ p, listAvg }: { p: ParsedBooking; listAvg: number }) {
         tone="good"
       />
       <NumCard
-        label="Cash risk"
-        value={`${p.cashRiskPct.toFixed(0)}%`}
-        sub={p.cashToCollect > 0 ? formatCurrency(p.cashToCollect) + " to collect" : "None"}
-        tone={p.cashRiskPct >= 50 ? "bad" : "ok"}
+        label="Collect on trip"
+        value={p.cashToCollect > 0 ? formatCurrency(p.cashToCollect) : "—"}
+        sub={p.cashToCollect > 0 ? "cash to collect" : "prepaid / none"}
+        tone="neutral"
       />
-      <NumCard label="Customer total" value={formatCurrency(p.totalAmt)} sub="gross" tone="neutral" />
+      <NumCard label="Customer total" value={formatCurrency(p.totalAmt)} sub="total_amt" tone="neutral" />
       <NumCard label="Payment" value={p.paymentLabel} sub={p.isAdvance ? "Partial / advance" : undefined} tone="warn" />
     </div>
   );
@@ -249,7 +261,10 @@ function TripLogistics({ row, p }: { row: Record<string, unknown>; p: ParsedBook
         <RowD label="Night allowance" value={p.nightAllowance > 0 ? formatCurrency(p.nightAllowance) : "—"} />
         <RowD label="Toll / state tax" value={toll !== "—" ? toll : "Check fare terms"} />
         <RowD label="Booked on" value={bookedOn} />
-        <RowD label="Surge" value={p.isSurged ? "Flagged / high demand" : "None"} />
+        <RowD label="Rate change (step 1)" value={p.rateChangeStep1 || "—"} />
+        <RowD label="Step 1 at" value={p.step1At || "—"} />
+        <RowD label="Step 2 at" value={p.step2At || "—"} />
+        <RowD label="Step 3 at" value={p.step3At || "—"} />
       </dl>
     </div>
   );

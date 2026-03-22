@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils-date";
 import {
   buildBookingGroups,
+  computeGroupDebug,
   filterByPill,
+  filterRowsByFleetCar,
   listAvgRpKm,
   parseBooking,
   sortParsedBookings,
@@ -35,15 +37,29 @@ const FILTER_PILLS: { id: ListFilterPill; label: string }[] = [
   { id: "all", label: "All" },
   { id: "prepaid", label: "Pre-paid only" },
   { id: "urgent6h", label: "Urgent <6h" },
-  { id: "surged", label: "Surged" },
 ];
 
 const SORT_OPTIONS: { id: SavariSortKey; label: string }[] = [
   { id: "urgency", label: "Urgency" },
   { id: "earnings", label: "Earnings" },
   { id: "rpkm", label: "₹/km" },
-  { id: "lowRisk", label: "Low risk" },
+  { id: "prepaidFirst", label: "Pre-paid first" },
 ];
+
+const CAR_CHIPS: { id: string; label: string }[] = [
+  { id: ALL, label: "All" },
+  { id: "etios", label: "Etios" },
+  { id: "wagon", label: "Wagon R" },
+];
+
+function matchesCarChip(p: ParsedBooking, carId: string): boolean {
+  if (carId === ALL) return true;
+  const n = p.carType.toLowerCase();
+  if (carId === "etios") return /\betios\b/i.test(p.carType) && !/crysta/i.test(n);
+  if (carId === "wagon")
+    return /wagon\s*r|wagonr/i.test(n) || (n.includes("wagon") && n.includes("r"));
+  return true;
+}
 
 export default function SavariBroadcastsPage() {
   const navigate = useNavigate();
@@ -52,36 +68,34 @@ export default function SavariBroadcastsPage() {
     queryFn: () => api.getSavaariBroadcasts({ booking_id: "0" }),
   });
 
-  const items = q.data?.items ?? [];
-  const resultset = q.data?.resultset;
-  const totalBookings =
-    resultset != null && typeof resultset.totalCount === "number"
-      ? resultset.totalCount
-      : items.length;
+  const rawItems = q.data?.items ?? [];
+  const rawCount = rawItems.length;
+
+  const fleetRows = useMemo(
+    () => filterRowsByFleetCar(rawItems as Record<string, unknown>[]),
+    [rawItems],
+  );
 
   const parsedAll = useMemo(
-    () => (items as Record<string, unknown>[]).map(parseBooking),
-    [items],
+    () => fleetRows.map((row) => parseBooking(row)),
+    [fleetRows],
   );
 
   const [pill, setPill] = useState<ListFilterPill>("all");
   const [sortKey, setSortKey] = useState<SavariSortKey>("urgency");
-  const [carFilter, setCarFilter] = useState(ALL);
+  const [carChip, setCarChip] = useState(ALL);
   const [paymentFilter, setPaymentFilter] = useState(ALL);
   const [tripTypeFilter, setTripTypeFilter] = useState(ALL);
 
-  const { carOptions, paymentOptions, tripTypeOptions } = useMemo(() => {
-    const cars = new Set<string>();
+  const { paymentOptions, tripTypeOptions } = useMemo(() => {
     const pays = new Set<string>();
     const trips = new Set<string>();
     for (const p of parsedAll) {
-      if (p.carType) cars.add(p.carType);
       if (p.paymentLabel) pays.add(p.paymentLabel);
       if (p.tripTypeName.trim()) trips.add(p.tripTypeName);
     }
     const sort = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
     return {
-      carOptions: [...cars].sort(sort),
       paymentOptions: [...pays].sort(sort),
       tripTypeOptions: [...trips].sort(sort),
     };
@@ -89,11 +103,11 @@ export default function SavariBroadcastsPage() {
 
   const filtered = useMemo(() => {
     let list = filterByPill(parsedAll, pill);
-    if (carFilter !== ALL) list = list.filter((p) => p.carType === carFilter);
+    list = list.filter((p) => matchesCarChip(p, carChip));
     if (paymentFilter !== ALL) list = list.filter((p) => p.paymentLabel === paymentFilter);
     if (tripTypeFilter !== ALL) list = list.filter((p) => p.tripTypeName === tripTypeFilter);
     return list;
-  }, [parsedAll, pill, carFilter, paymentFilter, tripTypeFilter]);
+  }, [parsedAll, pill, carChip, paymentFilter, tripTypeFilter]);
 
   const sorted = useMemo(() => sortParsedBookings(filtered, sortKey), [filtered, sortKey]);
 
@@ -106,8 +120,10 @@ export default function SavariBroadcastsPage() {
   }, [filtered]);
 
   const groups = useMemo(() => buildBookingGroups(parsedAll), [parsedAll]);
+  const groupDebug = useMemo(() => computeGroupDebug(rawCount, parsedAll), [rawCount, parsedAll]);
 
-  const hasExtraFilters = carFilter !== ALL || paymentFilter !== ALL || tripTypeFilter !== ALL;
+  const hasExtraFilters =
+    pill !== "all" || carChip !== ALL || paymentFilter !== ALL || tripTypeFilter !== ALL;
 
   const openDetail = (p: ParsedBooking) => {
     navigate(`/savari/booking/${encodeURIComponent(p.bookingId)}`, {
@@ -131,8 +147,17 @@ export default function SavariBroadcastsPage() {
           </Link>
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold tracking-tight">Open bookings ({totalBookings})</h1>
-          <p className="text-xs text-muted-foreground">Rule-based cards — no AI</p>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Open bookings ({parsedAll.length})
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {rawCount > 0 && (
+              <>
+                Feed {rawCount} · Showing Etios &amp; Wagon R · rule-based
+              </>
+            )}
+            {rawCount === 0 && "Rule-based cards — no AI"}
+          </p>
         </div>
         <Button
           variant="outline"
@@ -146,8 +171,8 @@ export default function SavariBroadcastsPage() {
         </Button>
       </div>
 
-      {!q.isLoading && !q.isError && items.length > 0 && (
-        <div className="mb-4 space-y-3">
+      {!q.isLoading && !q.isError && rawItems.length > 0 && (
+        <div className="mb-4 space-y-4">
           <div className="grid grid-cols-2 gap-2 rounded-lg border bg-card px-3 py-2 text-xs sm:grid-cols-4">
             <div>
               <p className="text-[10px] text-muted-foreground">Total earn</p>
@@ -158,7 +183,7 @@ export default function SavariBroadcastsPage() {
             <div>
               <p className="text-[10px] text-muted-foreground">Pre-paid</p>
               <p className="font-medium tabular-nums">
-                {stats.prepaidN}/{filtered.length || parsedAll.length}
+                {stats.prepaidN}/{filtered.length}
               </p>
             </div>
             <div>
@@ -171,45 +196,76 @@ export default function SavariBroadcastsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {FILTER_PILLS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setPill(f.id)}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  pill === f.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Sort
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SORT_OPTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSortKey(s.id)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    sortKey === s.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-medium text-muted-foreground">Sort:</span>
-            {SORT_OPTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSortKey(s.id)}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  sortKey === s.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Quick filters
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {FILTER_PILLS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setPill(f.id)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    pill === f.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3">
-            <FilterSelect label="Car" value={carFilter} options={carOptions} onChange={setCarFilter} />
+          <div>
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Car (fleet)
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {CAR_CHIPS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCarChip(c.id)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    carChip === c.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
             <FilterSelect
               label="Payment"
               value={paymentFilter}
@@ -224,7 +280,7 @@ export default function SavariBroadcastsPage() {
             />
           </div>
 
-          {(pill !== "all" || hasExtraFilters) && (
+          {hasExtraFilters && (
             <Button
               type="button"
               variant="ghost"
@@ -232,7 +288,7 @@ export default function SavariBroadcastsPage() {
               className="h-8 px-2 text-xs"
               onClick={() => {
                 setPill("all");
-                setCarFilter(ALL);
+                setCarChip(ALL);
                 setPaymentFilter(ALL);
                 setTripTypeFilter(ALL);
               }}
@@ -250,7 +306,7 @@ export default function SavariBroadcastsPage() {
           onRetry={() => void q.refetch()}
         />
       )}
-      {!q.isLoading && !q.isError && items.length === 0 && (
+      {!q.isLoading && !q.isError && rawItems.length === 0 && (
         <EmptyState
           title="No broadcasts"
           subtitle="The feed returned no items, or the server token is not configured."
@@ -258,7 +314,7 @@ export default function SavariBroadcastsPage() {
         />
       )}
 
-      {!q.isLoading && !q.isError && items.length > 0 && (
+      {!q.isLoading && !q.isError && rawItems.length > 0 && (
         <Tabs defaultValue="solo" className="w-full">
           <TabsList className="mb-3 grid w-full grid-cols-2">
             <TabsTrigger value="solo">Solo bookings</TabsTrigger>
@@ -285,10 +341,21 @@ export default function SavariBroadcastsPage() {
 
           <TabsContent value="groups" className="mt-0 space-y-3">
             {groups.length === 0 ? (
-              <p className="rounded-lg border border-dashed bg-muted/20 px-3 py-6 text-center text-sm text-muted-foreground">
-                No clusters yet — need at least two compatible one-ways (same car, reverse or repeat
-                corridor).
-              </p>
+              <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-4 text-sm">
+                <p className="mb-2 font-medium text-foreground">No route groups yet</p>
+                <p className="mb-3 text-muted-foreground">
+                  Groups need two one-way bookings with both pickup &amp; drop cities, matching car, and
+                  pickup times (reverse route within 5 days, or same corridor twice).
+                </p>
+                <div className="rounded-md bg-muted/50 p-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                  <div>raw feed: {groupDebug.rawFeedCount}</div>
+                  <div>after Etios/Wagon R: {groupDebug.fleetFilteredCount}</div>
+                  <div>eligible (not round-trip): {groupDebug.eligibleForPairing}</div>
+                  <div>with both cities: {groupDebug.withBothCities}</div>
+                  <div>with pickup time parsed: {groupDebug.withPickupTime}</div>
+                  <div>round-trip skipped: {groupDebug.roundTripSkipped}</div>
+                </div>
+              </div>
             ) : (
               groups.map((g) => (
                 <Card key={g.id} className="overflow-hidden border-blue-500/30">
@@ -337,7 +404,7 @@ export default function SavariBroadcastsPage() {
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex justify-between gap-2">
-                              <span className="font-medium">{b.routeLabel}</span>
+                              <span className="font-medium">{b.routeTitleShort}</span>
                               <span className="shrink-0 text-emerald-600 tabular-nums dark:text-emerald-400">
                                 {formatCurrency(b.vendorCost)}
                               </span>
@@ -390,7 +457,7 @@ function FilterSelect({
       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-9 text-xs">
-          <SelectValue placeholder={`All`} />
+          <SelectValue placeholder="All" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All</SelectItem>
@@ -414,6 +481,8 @@ function BookingCard({
   onOpenDetail: () => void;
   onAccept: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   const timerClass =
     p.timerTone === "red"
       ? "text-red-500"
@@ -429,21 +498,29 @@ function BookingCard({
         : `${p.hoursLeft.toFixed(1)}h left`;
 
   const borderL =
-    p.borderAccent === "red"
-      ? "border-l-4 border-l-red-500"
-      : p.borderAccent === "amber"
-        ? "border-l-4 border-l-amber-500"
-        : "border-l-4 border-l-transparent";
+    p.borderAccent === "red" ? "border-l-4 border-l-red-500" : "border-l-4 border-l-transparent";
 
   const scorePct = Math.min(100, Math.max(0, p.compositeScore));
+
+  const addrLine = p.pickAddress || p.pickCity;
 
   return (
     <Card className={cn("overflow-hidden shadow-sm", borderL)}>
       <CardContent className="p-0">
         <div className="p-4 pb-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+              #{p.bookingId}
+            </span>
+          </div>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold leading-snug">{p.routeLabel}</p>
+              <p className="text-sm font-semibold leading-snug">{p.routeTitleShort}</p>
+              {addrLine ? (
+                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                  Pickup: {addrLine}
+                </p>
+              ) : null}
               <p className="text-[11px] text-muted-foreground">
                 {p.pickupTimeLabel || "—"} · {p.packageKms > 0 ? `${Math.round(p.packageKms)} km` : "—"}
               </p>
@@ -454,6 +531,9 @@ function BookingCard({
                 {formatCurrency(p.vendorCost)}
               </p>
               <p className="text-[10px] text-muted-foreground">your earnings</p>
+              <p className="mt-0.5 text-[11px] font-medium tabular-nums text-foreground">
+                {formatCurrency(p.totalAmt)} <span className="font-normal text-muted-foreground">total</span>
+              </p>
               <div className="mt-1 w-24">
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
@@ -477,15 +557,27 @@ function BookingCard({
                 {p.tripTypeName.length > 28 ? `${p.tripTypeName.slice(0, 28)}…` : p.tripTypeName}
               </span>
             )}
-            {p.isSurged && (
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-200">
-                Heavily surged
-              </span>
-            )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed bg-muted/20 px-2 py-1.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40"
+          >
+            <span>Rate &amp; step times</span>
+            <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+          </button>
+          {open && (
+            <div className="mt-2 space-y-1 rounded-md border bg-card px-2 py-2 text-[11px]">
+              <RowMini label="Rate change (step 1)" value={p.rateChangeStep1 || "—"} />
+              <RowMini label="Step 1" value={p.step1At || "—"} />
+              <RowMini label="Step 2" value={p.step2At || "—"} />
+              <RowMini label="Step 3" value={p.step3At || "—"} />
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-4 divide-x divide-border border-y border-border bg-muted/20 text-center text-[10px]">
+        <div className="grid grid-cols-3 divide-x divide-border border-y border-border bg-muted/20 text-center text-[10px]">
           <div className="py-2">
             <p className="text-muted-foreground">₹/km</p>
             <p
@@ -498,27 +590,14 @@ function BookingCard({
             </p>
           </div>
           <div className="py-2">
-            <p className="text-muted-foreground">Cash risk</p>
-            <p
-              className={cn(
-                "font-semibold tabular-nums",
-                p.cashRiskPct <= 5 ? "text-emerald-600" : p.cashRiskPct >= 50 ? "text-red-500" : "text-foreground",
-              )}
-            >
-              {p.cashRiskPct.toFixed(0)}%
-            </p>
-          </div>
-          <div className="py-2">
             <p className="text-muted-foreground">Collect</p>
             <p className="font-semibold tabular-nums">
               {p.cashToCollect > 0 ? formatCurrency(p.cashToCollect) : "—"}
             </p>
           </div>
           <div className="py-2">
-            <p className="text-muted-foreground">Night alw.</p>
-            <p className="font-semibold tabular-nums">
-              {p.nightAllowance > 0 ? formatCurrency(p.nightAllowance) : "—"}
-            </p>
+            <p className="text-muted-foreground">Customer total</p>
+            <p className="font-semibold tabular-nums">{formatCurrency(p.totalAmt)}</p>
           </div>
         </div>
 
@@ -544,5 +623,14 @@ function BookingCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function RowMini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 text-right font-mono text-[10px] tabular-nums text-foreground">{value}</span>
+    </div>
   );
 }

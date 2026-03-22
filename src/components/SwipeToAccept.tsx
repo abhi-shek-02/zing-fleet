@@ -9,7 +9,7 @@ type Props = {
 };
 
 /**
- * Drag the thumb to the right to confirm. No second tap — matches “swipe to accept” UX.
+ * Drag the thumb to the right to confirm. Track fills with a green gradient as you drag.
  */
 export function SwipeToAccept({ onAccept, disabled, className }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -49,7 +49,7 @@ export function SwipeToAccept({ onAccept, disabled, className }: Props) {
     measure();
     dragging.current = true;
     startPointer.current = e.clientX;
-    startOffset.current = offset;
+    startOffset.current = offsetRef.current;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
@@ -70,22 +70,41 @@ export function SwipeToAccept({ onAccept, disabled, className }: Props) {
     }
   };
 
+  const max = maxOffset.current || 1;
+  const progress = Math.min(1, offset / max);
+
   return (
     <div
       ref={trackRef}
       className={cn(
-        "relative flex h-12 w-full select-none items-center overflow-hidden rounded-full border border-border/80 bg-muted/50",
+        "relative flex h-12 w-full select-none items-center overflow-hidden rounded-full border-2 bg-muted/40 transition-[border-color] duration-200",
+        progress > 0.75 ? "border-emerald-500/60" : "border-border/80",
         disabled && "pointer-events-none opacity-50",
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Swipe to accept
+      {/* Progress fill */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-500/25 via-emerald-500/40 to-emerald-600/50 transition-[width] duration-75 ease-out"
+        style={{ width: `${progress * 100}%` }}
+      />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-y-0 left-3 flex items-center text-[11px] font-semibold uppercase tracking-wide transition-colors duration-200",
+          progress > 0.4 ? "text-emerald-800 dark:text-emerald-200" : "text-muted-foreground",
+        )}
+      >
+        {progress > 0.85 ? "Release to accept" : "Swipe to accept"}
       </div>
       <button
         type="button"
         aria-label="Swipe right to accept booking"
-        className="absolute left-1 top-1 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md touch-none"
+        className={cn(
+          "absolute left-1 top-1 z-10 flex h-10 w-10 items-center justify-center rounded-full shadow-lg touch-none transition-[transform,background-color,box-shadow] duration-75",
+          progress > 0.5
+            ? "bg-emerald-600 text-white ring-2 ring-emerald-400/50"
+            : "bg-primary text-primary-foreground",
+        )}
         style={{ transform: `translateX(${offset}px)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
