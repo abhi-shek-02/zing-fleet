@@ -232,10 +232,10 @@ export default function SavariBotDashboard() {
   const clearLog = () => setActivityLog([]);
 
   return (
-    <div className="min-h-screen bg-[#121212] text-zinc-100">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <div className="mx-auto max-w-2xl px-4 pb-8 pt-4">
         {botQuery.isLoading && (
-          <p className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs text-zinc-400">
+          <p className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600">
             Loading bot config from API…
           </p>
         )}
@@ -258,7 +258,7 @@ export default function SavariBotDashboard() {
             <Button
               variant="ghost"
               size="icon"
-              className="shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              className="shrink-0 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
               asChild
             >
               <Link to="/savari" aria-label="Back">
@@ -271,7 +271,7 @@ export default function SavariBotDashboard() {
               </div>
               <div>
                 <h1 className="text-lg font-semibold leading-tight">Savaari Booking Bot</h1>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-600">
                   Vendor ID: {botConfig.vendorId} · {vendorLocation}
                 </p>
               </div>
@@ -280,8 +280,8 @@ export default function SavariBotDashboard() {
           <div className="flex flex-col items-end gap-1.5">
             <div className="space-y-1 text-right">
               <p className="text-[10px] uppercase tracking-wide text-zinc-500">Next run</p>
-              <p className="font-mono text-sm font-semibold tabular-nums text-zinc-100">{timerLabel}</p>
-              <div className="h-1.5 w-28 overflow-hidden rounded-full bg-zinc-800">
+              <p className="font-mono text-sm font-semibold tabular-nums text-zinc-900">{timerLabel}</p>
+              <div className="h-1.5 w-28 overflow-hidden rounded-full bg-zinc-200">
                 <div
                   className="h-full rounded-full bg-blue-500 transition-all duration-300"
                   style={{ width: `${progressPct}%` }}
@@ -291,10 +291,10 @@ export default function SavariBotDashboard() {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium",
-                running ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-700 text-zinc-400",
+                running ? "bg-emerald-500/15 text-emerald-700" : "bg-zinc-200 text-zinc-600",
               )}
             >
-              <span className={cn("h-1.5 w-1.5 rounded-full", running ? "bg-emerald-400" : "bg-zinc-500")} />
+              <span className={cn("h-1.5 w-1.5 rounded-full", running ? "bg-emerald-600" : "bg-zinc-400")} />
               {running ? "Running" : "Stopped"}
             </span>
           </div>
@@ -309,10 +309,10 @@ export default function SavariBotDashboard() {
         </div>
 
         {/* Trip toggles */}
-        <div className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="mb-5 rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Trip type toggles</h2>
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
               {activeCount} active
             </span>
           </div>
@@ -320,7 +320,7 @@ export default function SavariBotDashboard() {
             {TRIP_LABELS.map(({ id, title, hint }) => (
               <li
                 key={id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 px-3 py-2.5"
+                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2.5"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{title}</p>
@@ -341,23 +341,23 @@ export default function SavariBotDashboard() {
 
         {/* Tabs + config */}
         <Tabs defaultValue="routes" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 bg-zinc-900 p-1">
-            <TabsTrigger value="routes" className="text-[11px] data-[state=active]:bg-zinc-800">
+          <TabsList className="grid w-full grid-cols-4 bg-zinc-100 p-1">
+            <TabsTrigger value="routes" className="text-[11px] data-[state=active]:bg-white data-[state=active]:shadow-sm">
               Outstation
             </TabsTrigger>
-            <TabsTrigger value="round" className="text-[11px] data-[state=active]:bg-zinc-800">
+            <TabsTrigger value="round" className="text-[11px] data-[state=active]:bg-white data-[state=active]:shadow-sm">
               Round trip
             </TabsTrigger>
-            <TabsTrigger value="rental" className="text-[11px] data-[state=active]:bg-zinc-800">
+            <TabsTrigger value="rental" className="text-[11px] data-[state=active]:bg-white data-[state=active]:shadow-sm">
               Rental
             </TabsTrigger>
-            <TabsTrigger value="config" className="text-[11px] data-[state=active]:bg-zinc-800">
+            <TabsTrigger value="config" className="text-[11px] data-[state=active]:bg-white data-[state=active]:shadow-sm">
               Config
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="routes" className="mt-0 space-y-3">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-1 flex-wrap gap-2">
                   <button
@@ -366,8 +366,8 @@ export default function SavariBotDashboard() {
                     className={cn(
                       "rounded-full border px-3 py-2 text-xs font-medium transition-colors",
                       direction === "kolkata_out"
-                        ? "border-blue-600 bg-blue-600/20 text-blue-300"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-400",
+                        ? "border-blue-600 bg-blue-50 text-blue-800"
+                        : "border-zinc-300 bg-white text-zinc-500",
                     )}
                   >
                     → Kolkata → Other city
@@ -378,14 +378,14 @@ export default function SavariBotDashboard() {
                     className={cn(
                       "rounded-full border px-3 py-2 text-xs font-medium transition-colors",
                       direction === "into_kolkata"
-                        ? "border-blue-600 bg-blue-600/20 text-blue-300"
-                        : "border-zinc-700 bg-zinc-950 text-zinc-400",
+                        ? "border-blue-600 bg-blue-50 text-blue-800"
+                        : "border-zinc-300 bg-white text-zinc-500",
                     )}
                   >
                     ← Other city → Kolkata
                   </button>
                 </div>
-                <span className="rounded-full bg-blue-600/20 px-2 py-0.5 text-[10px] font-medium text-blue-300">
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
                   {routesEnabledCount} active · {activeRoutes.length} total
                 </span>
               </div>
@@ -395,20 +395,20 @@ export default function SavariBotDashboard() {
                   <div
                     key={r.id}
                     className={cn(
-                      "relative rounded-xl border bg-zinc-950/80 p-2.5 transition-opacity",
-                      r.enabled ? "border-zinc-800" : "border-zinc-700/50 opacity-60",
+                      "relative rounded-xl border bg-zinc-50 p-2.5 transition-opacity",
+                      r.enabled ? "border-zinc-200" : "border-zinc-300 opacity-60",
                     )}
                   >
                     <button
                       type="button"
                       onClick={() => removeRoute(r.id)}
-                      className="absolute right-1.5 top-1.5 z-10 rounded text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                      className="absolute right-1.5 top-1.5 z-10 rounded text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
                       aria-label={`Remove ${r.city}`}
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                     <div className="mb-2 flex items-start justify-between gap-1 pr-6">
-                      <p className="text-xs font-semibold leading-tight text-zinc-200">{r.city}</p>
+                      <p className="text-xs font-semibold leading-tight text-zinc-900">{r.city}</p>
                     </div>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
@@ -426,7 +426,7 @@ export default function SavariBotDashboard() {
                         aria-label={`${r.enabled ? "Disable" : "Enable"} route ${r.city}`}
                       />
                     </div>
-                    <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5">
+                    <div className="flex items-center rounded-lg border border-zinc-200 bg-white px-2 py-1.5">
                       <span className="text-xs text-zinc-500">₹</span>
                       <Input
                         type="number"
@@ -438,28 +438,28 @@ export default function SavariBotDashboard() {
                           );
                           markDirty();
                         }}
-                        className="h-7 border-0 bg-transparent px-1 text-xs text-zinc-100 focus-visible:ring-0"
+                        className="h-7 border-0 bg-transparent px-1 text-xs text-zinc-900 focus-visible:ring-0"
                       />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-200 pt-4">
                 <Input
                   placeholder="City name (e.g. Siliguri)"
                   value={newCity}
                   onChange={(e) => setNewCity(e.target.value)}
-                  className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100 placeholder:text-zinc-600"
+                  className="border-zinc-200 bg-white text-sm text-zinc-900 placeholder:text-zinc-400"
                 />
                 <Input
                   type="number"
                   placeholder="Min cost"
                   value={newMinCost}
                   onChange={(e) => setNewMinCost(e.target.value)}
-                  className="w-28 border-zinc-800 bg-zinc-950 text-sm text-zinc-100 placeholder:text-zinc-600"
+                  className="w-28 border-zinc-200 bg-white text-sm text-zinc-900 placeholder:text-zinc-400"
                 />
-                <Button type="button" variant="secondary" className="bg-zinc-800 text-zinc-100" onClick={addRoute}>
+                <Button type="button" variant="secondary" className="bg-zinc-200 text-zinc-900 hover:bg-zinc-300" onClick={addRoute}>
                   + Add city
                 </Button>
               </div>
@@ -474,7 +474,7 @@ export default function SavariBotDashboard() {
           </TabsContent>
 
           <TabsContent value="round" className="mt-0">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
               <div className="grid grid-cols-2 gap-3">
                 <Field
                   label="Min cost per km (₹)"
@@ -509,7 +509,7 @@ export default function SavariBotDashboard() {
                   }}
                 />
               </div>
-              <p className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+              <p className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
                 A booking passes when:{" "}
                 <span className="text-zinc-400">
                   vendor_cost &gt; (days × min_per_day) + (kms / mileage × fuel_cost)
@@ -527,7 +527,7 @@ export default function SavariBotDashboard() {
           </TabsContent>
 
           <TabsContent value="rental" className="mt-0">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field
                   label="8hr / 80km — min cost (₹)"
@@ -556,7 +556,7 @@ export default function SavariBotDashboard() {
           </TabsContent>
 
           <TabsContent value="config" className="mt-0">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
               <div className="grid grid-cols-2 gap-3">
                 <Field
                   label="Polling interval (ms)"
@@ -576,7 +576,7 @@ export default function SavariBotDashboard() {
                       setBotConfig((s) => ({ ...s, vendorId: e.target.value }));
                       markDirty();
                     }}
-                    className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100"
+                    className="border-zinc-200 bg-white text-sm text-zinc-900"
                   />
                 </label>
               </div>
@@ -590,7 +590,7 @@ export default function SavariBotDashboard() {
                     setVendorLocation(e.target.value);
                     markDirty();
                   }}
-                  className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100"
+                  className="border-zinc-200 bg-white text-sm text-zinc-900"
                 />
               </label>
               <label className="mt-3 block">
@@ -603,7 +603,7 @@ export default function SavariBotDashboard() {
                     setBotConfig((s) => ({ ...s, apiUrl: e.target.value }));
                     markDirty();
                   }}
-                  className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100"
+                  className="border-zinc-200 bg-white text-sm text-zinc-900"
                 />
               </label>
               <label className="mt-3 block">
@@ -616,7 +616,7 @@ export default function SavariBotDashboard() {
                     setBotConfig((s) => ({ ...s, carTypes: e.target.value }));
                     markDirty();
                   }}
-                  className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100"
+                  className="border-zinc-200 bg-white text-sm text-zinc-900"
                 />
               </label>
               <ConfigFooter
@@ -630,36 +630,36 @@ export default function SavariBotDashboard() {
         </Tabs>
 
         {/* Activity log */}
-        <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white shadow-sm shadow-zinc-200/60 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Activity log</h2>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              className="h-7 text-xs text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
               onClick={clearLog}
             >
               Clear
             </Button>
           </div>
-          <div className="relative max-h-48 overflow-y-auto rounded-xl border border-zinc-800 bg-[#0a0a0a] p-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+          <div className="relative max-h-48 overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-100 p-3 font-mono text-[11px] leading-relaxed text-zinc-700">
             {activityLog.length === 0 ? (
               <p className="text-zinc-600">No entries</p>
             ) : (
               activityLog.map((line, i) => (
-                <p key={i} className="text-zinc-400">
+                <p key={i} className="text-zinc-700">
                   {line}
                 </p>
               ))
             )}
-            <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-zinc-600">
+            <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-zinc-400">
               <ChevronDown className="h-4 w-4" />
             </div>
           </div>
         </div>
 
-        <p className="mt-6 text-center text-[10px] text-zinc-600">
+        <p className="mt-6 text-center text-[10px] text-zinc-500">
           Settings load from <code className="text-zinc-500">GET /api/savari-bot/config</code> · Set{" "}
           <code className="text-zinc-500">VITE_API_BASE_URL</code> if the API is not on the default host.{" "}
           <Link to="/savari" className="text-blue-500 underline-offset-2 hover:underline">
@@ -694,17 +694,17 @@ function Kpi({
           : "border-violet-500/20 bg-violet-500/5";
   const ic =
     accent === "emerald"
-      ? "text-emerald-400"
+      ? "text-emerald-600"
       : accent === "sky"
-        ? "text-sky-400"
+        ? "text-sky-600"
         : accent === "amber"
-          ? "text-amber-400"
-          : "text-violet-400";
+          ? "text-amber-600"
+          : "text-violet-600";
   return (
     <div className={cn("rounded-xl border p-3", ring)}>
       <div className={cn("mb-1 flex items-center gap-1.5", ic)}>{icon}</div>
       <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="text-xl font-bold tabular-nums text-zinc-100">{value}</p>
+      <p className="text-xl font-bold tabular-nums text-zinc-900">{value}</p>
       <p className="text-[10px] text-zinc-600">{hint}</p>
     </div>
   );
@@ -728,7 +728,7 @@ function Field({
         type="number"
         value={numberOrZero(value)}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="border-zinc-800 bg-zinc-950 text-sm text-zinc-100"
+        className="border-zinc-200 bg-white text-sm text-zinc-900"
       />
     </label>
   );
@@ -750,13 +750,13 @@ function ConfigFooter({
   saving?: boolean;
 }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-4">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 pt-4">
       <p className="text-xs text-zinc-500">{dirty ? "Unsaved changes" : "No unsaved changes"}</p>
       <div className="flex gap-2">
         <Button
           type="button"
           variant="outline"
-          className="border-zinc-700 bg-transparent text-zinc-300"
+          className="border-zinc-300 bg-transparent text-zinc-700"
           onClick={() => void onReset()}
           disabled={saving}
         >

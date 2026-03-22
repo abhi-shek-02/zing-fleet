@@ -42,11 +42,12 @@ export function applySnapshot(snapshot: SavariBotSnapshot): SavariUiState {
     throw new Error("No bot config in database — run seed_savari_bot.sql or save once.");
   }
 
+  const c = cfg as Record<string, unknown>;
   const toggles: Record<TripToggleId, boolean> = {
-    outstation_oneway: b(cfg.tripOutstationOneway, false),
-    outstation_round: b(cfg.tripOutstationRound, false),
-    local_rental: b(cfg.tripLocalRental, false),
-    airport_transfer: b(cfg.tripAirportTransfer, false),
+    outstation_oneway: b(c.tripOutstationOneway, false),
+    outstation_round: b(c.tripOutstationRound, false),
+    local_rental: b(c.tripLocalRental, false),
+    airport_transfer: b(c.tripAirportTransfer, false),
   };
 
   const routesOut: OutstationRoute[] = [];
@@ -69,22 +70,22 @@ export function applySnapshot(snapshot: SavariBotSnapshot): SavariUiState {
     routesOut,
     routesIn,
     roundTrip: {
-      minCostPerKm: n(cfg.roundMinCostPerKm, 0),
-      minCostPerDay: n(cfg.roundMinCostPerDay, 0),
-      mileageKmPerL: n(cfg.roundMileageKmPerL, 0),
-      fuelCostPerL: n(cfg.roundFuelCostPerL, 0),
+      minCostPerKm: n(c.roundMinCostPerKm, 0),
+      minCostPerDay: n(c.roundMinCostPerDay, 0),
+      mileageKmPerL: n(c.roundMileageKmPerL, 0),
+      fuelCostPerL: n(c.roundFuelCostPerL, 0),
     },
     rental: {
-      min8h80km: n(cfg.rentalMin8h80km, 0),
-      min4h40km: n(cfg.rentalMin4h40km, 0),
+      min8h80km: n(c.rentalMin8h80km, 0),
+      min4h40km: n(c.rentalMin4h40km, 0),
     },
     botConfig: {
-      pollingIntervalMs: n(cfg.pollingIntervalMs, 0),
-      vendorId: String(cfg.vendorId ?? ""),
-      apiUrl: String(cfg.apiUrl ?? ""),
-      carTypes: String(cfg.carTypesCsv ?? ""),
+      pollingIntervalMs: n(c.pollingIntervalMs, 0),
+      vendorId: String(c.vendorId ?? ""),
+      apiUrl: String(c.apiUrl ?? ""),
+      carTypes: String(c.carTypesCsv ?? ""),
     },
-    vendorLocation: cfg.vendorLocation != null ? String(cfg.vendorLocation) : "",
+    vendorLocation: c.vendorLocation != null ? String(c.vendorLocation) : "",
   };
 }
 

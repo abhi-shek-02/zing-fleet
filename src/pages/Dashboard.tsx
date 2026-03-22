@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getWeekStart, formatCurrency } from "@/lib/utils-date";
 import { useDrivers, useCars, useAllCash, useAllVendor, useAllFuel, useAllOtherCosts, useAllSettlements, useAllOtherEarnings, useSettlementModeHistory } from "@/hooks/useApi";
 import {
@@ -12,7 +12,8 @@ import { useRefetchAllFinancialOnWeekChange } from "@/hooks/useRefetchAllFinanci
 import { LoadingSpinner, ErrorState } from "@/components/LoadingState";
 import WeekPicker from "@/components/WeekPicker";
 import StatCard from "@/components/StatCard";
-import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign } from "lucide-react";
+import { ChevronRight, AlertTriangle, Info, Banknote, Receipt, Fuel, Users, TrendingUp, CircleDollarSign, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const [week, setWeek] = useState(getWeekStart());
@@ -121,14 +122,26 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       <div className="sticky top-0 z-40 bg-background pb-3 pt-2">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Weekly fleet overview</p>
           </div>
-          <button onClick={() => setShowHelp(!showHelp)} className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Info className="h-4 w-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs" asChild>
+              <Link to="/savari/bot">
+                <Bot className="h-3.5 w-3.5" />
+                Savaari bot
+              </Link>
+            </Button>
+            <button
+              type="button"
+              onClick={() => setShowHelp(!showHelp)}
+              className="rounded-md border p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <Info className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <WeekPicker value={week} onChange={setWeek} />
       </div>

@@ -26,8 +26,11 @@ const API_BASE = apiBase();
 function toSnake(str: string): string {
   return str.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
+/** snake_case → camelCase. Handles digits (e.g. rental_min_8h_80km → rentalMin8h80km). */
 function toCamel(str: string): string {
-  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+  if (!str.includes("_")) return str;
+  const parts = str.split("_");
+  return parts[0] + parts.slice(1).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
 }
 
 function keysToSnake(obj: Record<string, unknown>): Record<string, unknown> {
