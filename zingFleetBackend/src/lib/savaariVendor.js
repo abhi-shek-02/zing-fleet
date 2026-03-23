@@ -104,6 +104,8 @@ async function postSavaariPostInterest(p) {
   const params = url.searchParams;
 
   params.set("action", "postInterest");
+  // Include vendorToken too. Some sessions accept cookies-only, others require token.
+  params.set("vendorToken", SAVAARI_VENDOR_TOKEN);
   params.set("vendor_id", String(p.vendorId ?? "").trim());
   params.set("broadcast_id", String(p.broadcastId ?? "").trim());
   params.set("booking_id", String(p.bookingId ?? "").trim());
@@ -119,6 +121,17 @@ async function postSavaariPostInterest(p) {
   // Required keys even when empty.
   params.set("packed_bookings", "");
   params.set("other_packed_bookings", "");
+
+  const cookieLen = vendorCookieHeader ? vendorCookieHeader.length : 0;
+  // Keep URL logging concise: full query string can include many keys.
+  console.log("[savaari-bid-debug]", {
+    url: url.toString(),
+    cookie_header_present: cookieLen > 0,
+    cookie_len: cookieLen,
+    vendor_id: p.vendorId ?? null,
+    booking_id: p.bookingId ?? null,
+    broadcast_id: p.broadcastId ?? null,
+  });
 
   const upstreamRes = await fetch(url.toString(), {
     method: "GET",
