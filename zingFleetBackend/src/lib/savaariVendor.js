@@ -17,6 +17,37 @@ const HEADERS = {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
 };
 
+// Vendor endpoint appears to rely on a "vendor session" across calls.
+// Keep cookies from getNewBusiness and reuse them for postInterest.
+let vendorCookieHeader = "";
+
+function rememberVendorCookies(upstreamRes) {
+  try {
+    // undici/Node fetch supports getSetCookie() in recent versions.
+    const setCookies = upstreamRes.headers.getSetCookie
+      ? upstreamRes.headers.getSetCookie()
+      : (upstreamRes.headers.get && upstreamRes.headers.get("set-cookie")
+          ? [upstreamRes.headers.get("set-cookie")]
+          : []);
+
+    if (!setCookies || !Array.isArray(setCookies) || setCookies.length === 0) return;
+
+    // Convert "name=value; ..." entries into a Cookie header: "name=value; name2=value2"
+    const cookiePairs = setCookies
+      .map((c) => String(c).split(";")[0])
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (cookiePairs.length) vendorCookieHeader = cookiePairs.join("; ");
+  } catch {
+    // Best-effort only. If cookies can't be captured, requests still proceed.
+  }
+}
+
+function cookieHeaders() {
+  return vendorCookieHeader ? { Cookie: vendorCookieHeader } : {};
+}
+
 /**
  * @param {string} [bookingId]
  * @returns {Promise<object>} raw upstream JSON
@@ -33,6 +64,8 @@ async function fetchSavaariNewBusiness(bookingId = "0") {
     method: "GET",
     headers: HEADERS,
   });
+
+  rememberVendorCookies(upstreamRes);
 
   const text = await upstreamRes.text();
   let json;
@@ -77,6 +110,7 @@ async function postSavaariPostInterest(p) {
     method: "POST",
     headers: {
       ...HEADERS,
+      ...cookieHeaders(),
       "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
     },
     body: params.toString(),
