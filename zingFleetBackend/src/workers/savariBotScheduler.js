@@ -7,11 +7,17 @@
 
 require("dotenv").config();
 const { supabase } = require("../lib/supabase");
-const { fetchSavaariNewBusiness } = require("../lib/savaariVendor");
+const {
+  fetchSavaariNewBusiness,
+  postSavaariPostInterest,
+} = require("../lib/savaariVendor");
 
 const LOG = "[savari-bot-scheduler]";
 
 const vendorId = (process.env.SAVARI_BOT_VENDOR_ID || "175236").trim();
+const biddingEnabled =
+  process.env.SAVARI_BOT_BID_ENABLED === "1" ||
+  process.env.SAVARI_BOT_BID_ENABLED === "true";
 
 const processedBookings = new Set();
 
@@ -202,6 +208,24 @@ async function tick() {
     const baseCity = config.vendor_location || "Kolkata, West Bengal";
     const { out: routesOut, inn: routesIn } = routeMapsFromRows(routeRows);
 
+    const enabledRoutes = (routeRows || []).filter((r) => r && r.enabled);
+    console.log(LOG, ts, "[rules] Supabase loaded", {
+      vendor_id: vendorId,
+      polling_interval_ms: config.polling_interval_ms,
+      vendor_location: config.vendor_location || null,
+      api_url: config.api_url || null,
+      car_types_csv: config.car_types_csv || null,
+      trips: {
+        trip_local_rental: !!config.trip_local_rental,
+        trip_outstation_oneway: !!config.trip_outstation_oneway,
+        trip_outstation_round: !!config.trip_outstation_round,
+        trip_airport_transfer: !!config.trip_airport_transfer,
+      },
+      routes_total: (routeRows || []).length,
+      routes_enabled: enabledRoutes.length,
+      rules_baseCity: baseCity,
+    });
+
     const json = await fetchSavaariNewBusiness("0");
     const rs = json.resultset || json.resultSet || {};
     const broadcastDetails = Array.isArray(rs.broadcast_details)
@@ -215,6 +239,7 @@ async function tick() {
 
     console.log(LOG, ts, `poll ok, ${broadcastDetails.length} booking(s) in feed`);
 
+    let eligibleCount = 0;
     for (const booking of broadcastDetails) {
       const bookingId = String(booking.booking_id ?? "");
       if (!bookingId || processedBookings.has(bookingId)) continue;
@@ -223,19 +248,62 @@ async function tick() {
         shouldBook(booking, config, routesOut, routesIn, carTypes, cities, baseCity)
       ) {
         processedBookings.add(bookingId);
-        console.log(
-          LOG,
-          "WOULD_BID (bidding disabled) booking_id=",
-          bookingId,
-          "vendor_cost=",
-          num(booking.vendor_cost, 0),
-          "trip=",
-          booking.trip_type,
-          "/",
-          booking.trip_type_name,
-        );
+        eligibleCount += 1;
+
+        const vendorCost = num(booking.vendor_cost, 0);
+        const broadcastId = String(
+          booking.broadcast_id ?? booking.broadcastId ?? ""
+        ).trim();
+
+        console.log(LOG, ts, "[ELIGIBLE]", {
+          booking_id: bookingId,
+          vendor_cost: vendorCost,
+          broadcast_id: broadcastId || null,
+          pick_city: booking.pick_city || null,
+          car_type: booking.car_type || null,
+          trip_type: booking.trip_type || null,
+          trip_type_name: booking.trip_type_name || null,
+        });
+
+        if (!biddingEnabled) {
+          console.log(LOG, ts, "[BID skipped]", {
+            reason: "SAVARI_BOT_BID_ENABLED is false",
+          });
+          continue;
+        }
+
+        console.log(LOG, ts, "[BID attempt]", {
+          booking_id: bookingId,
+          vendor_cost: vendorCost,
+          broadcast_id: broadcastId || null,
+        });
+
+        try {
+          const bidJson = await postSavaariPostInterest({
+            bookingId,
+            vendorCost,
+            broadcastId: broadcastId || undefined,
+          });
+          console.log(LOG, ts, "[BID success]", {
+            booking_id: bookingId,
+            status: bidJson?.status || null,
+          });
+        } catch (err) {
+          console.error(LOG, ts, "[BID error]", {
+            booking_id: bookingId,
+            message: err?.message || String(err),
+            upstream_status: err?.status || null,
+          });
+        }
       }
     }
+
+    console.log(LOG, ts, "[tick done]", {
+      vendor_id: vendorId,
+      feed_count: broadcastDetails.length,
+      eligible_count: eligibleCount,
+      processed_bookings_size: processedBookings.size,
+    });
   } catch (err) {
     console.error(LOG, ts, "tick error:", err.message || err);
   }
@@ -260,7 +328,7 @@ function start() {
       vendorId,
       "interval_ms=",
       intervalMs,
-      "(no postInterest)",
+      "biddingEnabled=" + (biddingEnabled ? "true" : "false"),
     );
 
     await tick();
