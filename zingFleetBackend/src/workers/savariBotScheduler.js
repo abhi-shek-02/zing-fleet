@@ -26,6 +26,14 @@ function num(v, d = 0) {
   return Number.isFinite(n) ? n : d;
 }
 
+function safeJson(v) {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
 function parseCarTypes(csv) {
   if (!csv || typeof csv !== "string") return [];
   return csv
@@ -286,13 +294,17 @@ async function tick() {
           });
           console.log(LOG, ts, "[BID success]", {
             booking_id: bookingId,
-            status: bidJson?.status || null,
+            response_keys:
+              bidJson && typeof bidJson === "object" ? Object.keys(bidJson) : [],
+            // Full upstream response body for debugging acceptance/rejection.
+            response_json: safeJson(bidJson),
           });
         } catch (err) {
           console.error(LOG, ts, "[BID error]", {
             booking_id: bookingId,
             message: err?.message || String(err),
             upstream_status: err?.status || null,
+            upstream_json: safeJson(err?.upstream ?? null),
           });
         }
       }
