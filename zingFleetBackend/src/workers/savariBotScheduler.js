@@ -78,6 +78,18 @@ function cityAllowed(booking, cities) {
   return cities.includes(booking.pick_city);
 }
 
+function normalizeText(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
+function includesNormalized(haystack, needle) {
+  return normalizeText(haystack).includes(normalizeText(needle));
+}
+
+function isKolkataLike(v) {
+  return includesNormalized(v, "kolkata") || includesNormalized(v, "calcutta");
+}
+
 function checkRental(booking, rental) {
   if (booking.trip_type !== "Local usage") return false;
   const vendorCost = num(booking.vendor_cost, 0);
@@ -99,20 +111,17 @@ function checkOutstation(booking, routesOut, routesIn, baseCity) {
   const vendorCost = num(booking.vendor_cost, 0);
 
   const fromKolkata =
-    baseCity && (pick === baseCity || String(pick).includes("Kolkata"));
+    !!baseCity && (normalizeText(pick) === normalizeText(baseCity) || isKolkataLike(pick));
+  const toKolkata = isKolkataLike(dest);
 
   if (fromKolkata) {
     for (const [routeCity, minCost] of Object.entries(routesOut)) {
-      if (dest.includes(routeCity) && vendorCost >= minCost) return true;
+      if (includesNormalized(dest, routeCity) && vendorCost >= minCost) return true;
     }
   }
 
   for (const [routeCity, minCost] of Object.entries(routesIn)) {
-    if (
-      String(pick).includes(routeCity) &&
-      /Kolkata/i.test(dest) &&
-      vendorCost >= minCost
-    ) {
+    if (includesNormalized(pick, routeCity) && toKolkata && vendorCost >= minCost) {
       return true;
     }
   }
@@ -181,7 +190,13 @@ function shouldBook(booking, cfg, routesOut, routesIn, carTypes, cities, baseCit
   }
 
   if (carTypes.length && !carAllowed(booking, carTypes)) return false;
-  if (cities.length && !cityAllowed(booking, cities)) return false;
+
+  // Outstation has its own directional city checks (Kolkata -> X and X -> Kolkata),
+  // so don't block it with a generic pick_city == vendor_location condition.
+  if (tripType !== "Outstation usage" && cities.length && !cityAllowed(booking, cities)) {
+    return false;
+  }
+
   return checkFn();
 }
 
