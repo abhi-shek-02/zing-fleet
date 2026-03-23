@@ -95,25 +95,37 @@ async function postSavaariPostInterest(p) {
     (process.env.SAVAARI_BOOKING_API_URL || "").trim() || DEFAULT_BOOKING_API;
   const url = new URL(base);
 
-  const params = new URLSearchParams();
+  // Match the vendor panel curl exactly (GET with required query parameters).
+  // Your working curl uses:
+  //   action=postInterest&vendor_id=175236&broadcast_id=...&booking_id=...
+  //   &vendor_cost=2997&bidding_cost=0&rebidding=0&priority_popup_flag=0
+  //   &packed_bookings=&other_packed_bookings=
+  url.search = "";
+  const params = url.searchParams;
+
   params.set("action", "postInterest");
-  params.set("vendorToken", SAVAARI_VENDOR_TOKEN);
+  params.set("vendor_id", String(p.vendorId ?? "").trim());
+  params.set("broadcast_id", String(p.broadcastId ?? "").trim());
   params.set("booking_id", String(p.bookingId ?? "").trim());
+
   if (p.vendorCost != null && String(p.vendorCost).trim() !== "") {
     params.set("vendor_cost", String(p.vendorCost).trim());
   }
-  if (p.broadcastId != null && String(p.broadcastId).trim() !== "") {
-    params.set("broadcast_id", String(p.broadcastId).trim());
-  }
+
+  params.set("bidding_cost", String(p.biddingCost ?? 0));
+  params.set("rebidding", String(p.rebidding ?? 0));
+  params.set("priority_popup_flag", String(p.priorityPopupFlag ?? 0));
+
+  // Required keys even when empty.
+  params.set("packed_bookings", "");
+  params.set("other_packed_bookings", "");
 
   const upstreamRes = await fetch(url.toString(), {
-    method: "POST",
+    method: "GET",
     headers: {
       ...HEADERS,
       ...cookieHeaders(),
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
     },
-    body: params.toString(),
   });
 
   const text = await upstreamRes.text();

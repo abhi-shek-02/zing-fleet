@@ -288,6 +288,7 @@ async function tick() {
 
         try {
           const bidJson = await postSavaariPostInterest({
+            vendorId,
             bookingId,
             vendorCost,
             broadcastId: broadcastId || undefined,
