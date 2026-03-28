@@ -315,7 +315,7 @@ async function tick() {
               bidJson && typeof bidJson === "object" ? Object.keys(bidJson) : [],
             response_json: safeJson(bidJson),
           });
-          upsertBooking(booking).catch(() => {});
+          upsertBooking(booking).catch((e) => console.error(LOG, "[analytics upsert error]", e?.message || e));
         } catch (err) {
           console.error(LOG, ts, "[BID error]", {
             booking_id: bookingId,

@@ -18,6 +18,8 @@ const TRIP_TYPE_MAP = {
 };
 
 async function upsertBooking(b) {
+  console.log("[savari-analytics] upsertBooking called, booking_id:", b?.booking_id, "keys:", Object.keys(b || {}));
+
   const totalAmt = Number(b.total_amt) || 0;
   const vendorCost = Number(b.vendor_cost) || 0;
   const savariCut = totalAmt - vendorCost;
@@ -38,11 +40,18 @@ async function upsertBooking(b) {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await analyticsSupabase
-    .from("bookings")
-    .upsert(row, { onConflict: "booking_id" });
+  console.log("[savari-analytics] upserting row:", JSON.stringify(row));
 
-  if (error) console.error("[savari-analytics] upsert failed:", error.message);
+  const { data, error } = await analyticsSupabase
+    .from("bookings")
+    .upsert(row, { onConflict: "booking_id" })
+    .select();
+
+  if (error) {
+    console.error("[savari-analytics] upsert FAILED:", error.message, "code:", error.code, "details:", error.details);
+  } else {
+    console.log("[savari-analytics] upsert OK, returned:", JSON.stringify(data));
+  }
 }
 
 module.exports = { upsertBooking, analyticsSupabase };
