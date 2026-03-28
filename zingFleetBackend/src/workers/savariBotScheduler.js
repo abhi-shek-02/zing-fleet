@@ -11,6 +11,7 @@ const {
   fetchSavaariNewBusiness,
   postSavaariPostInterest,
 } = require("../lib/savaariVendor");
+const { upsertBooking } = require("../lib/savariAnalytics");
 
 const LOG = "[savari-bot-scheduler]";
 
@@ -312,9 +313,9 @@ async function tick() {
             booking_id: bookingId,
             response_keys:
               bidJson && typeof bidJson === "object" ? Object.keys(bidJson) : [],
-            // Full upstream response body for debugging acceptance/rejection.
             response_json: safeJson(bidJson),
           });
+          upsertBooking(booking).catch(() => {});
         } catch (err) {
           console.error(LOG, ts, "[BID error]", {
             booking_id: bookingId,

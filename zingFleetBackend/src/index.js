@@ -23,6 +23,7 @@ const settingsRoutes = require("./routes/settings");
 const authRoutes = require("./routes/auth");
 const savaariRoutes = require("./routes/savaari");
 const savariBotRoutes = require("./routes/savariBot");
+const savariAnalyticsRoutes = require("./routes/savariAnalytics");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,6 +74,7 @@ app.use("/api/car-costs", carCostRoutes);
 app.use("/api/car-docs", carDocRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/savari-analytics", savariAnalyticsRoutes);
 
 // ─── 404 ─────────────────────────────────────────────────
 app.use((_req, res) => {

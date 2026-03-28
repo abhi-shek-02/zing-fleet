@@ -229,6 +229,9 @@ export const api = {
   deleteCarDoc: (id: string) =>
     request<null>(`/api/car-docs/${id}`, { method: "DELETE" }),
 
+  // Savari Analytics
+  getSavariAnalyticsDashboard: () => request<any>("/api/savari-analytics/dashboard"),
+
   // Settings
   getSettings: () => request<{ fuelThreshold: number }>("/api/settings"),
   updateSettings: (data: Record<string, unknown>) =>
