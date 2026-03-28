@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
+  BarChart3,
   ChevronDown,
   TrendingUp,
   Scan,
@@ -263,6 +264,16 @@ export default function SavariBotDashboard() {
             >
               <Link to="/savari" aria-label="Back">
                 <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              asChild
+            >
+              <Link to="/savari/analytics" aria-label="Analytics">
+                <BarChart3 className="h-4 w-4" />
               </Link>
             </Button>
             <div className="flex gap-3">

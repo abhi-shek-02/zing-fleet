@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/LoadingState";
 import StatCard from "@/components/StatCard";
 import {
@@ -107,9 +110,14 @@ export default function SavariAnalytics() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 pb-20">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Savari Vendor Analytics</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Booking insights from Savari broadcasts</p>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
+          <Link to="/savari" aria-label="Back"><ArrowLeft className="h-5 w-5" /></Link>
+        </Button>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Savari Vendor Analytics</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Booking insights from Savari broadcasts</p>
+        </div>
       </div>
 
       {/* SECTION 1 — Top Metric Cards */}

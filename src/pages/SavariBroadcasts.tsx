@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Bot, ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Bot, ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils-date";
 import {
@@ -155,6 +155,12 @@ export default function SavariBroadcastsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button variant="outline" size="sm" className="h-9 gap-1 px-2 text-xs" asChild>
+            <Link to="/savari/analytics">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Analytics
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" className="h-9 gap-1 px-2 text-xs" asChild>
             <Link to="/savari/bot">
               <Bot className="h-3.5 w-3.5" />

@@ -263,6 +263,12 @@ async function tick() {
 
     console.log(LOG, ts, `poll ok, ${broadcastDetails.length} booking(s) in feed`);
 
+    for (const booking of broadcastDetails) {
+      if (booking.booking_id) {
+        upsertBooking(booking).catch((e) => console.error(LOG, "[analytics upsert error]", e?.message || e));
+      }
+    }
+
     let eligibleCount = 0;
     for (const booking of broadcastDetails) {
       const bookingId = String(booking.booking_id ?? "");
@@ -315,7 +321,6 @@ async function tick() {
               bidJson && typeof bidJson === "object" ? Object.keys(bidJson) : [],
             response_json: safeJson(bidJson),
           });
-          upsertBooking(booking).catch((e) => console.error(LOG, "[analytics upsert error]", e?.message || e));
         } catch (err) {
           console.error(LOG, ts, "[BID error]", {
             booking_id: bookingId,
